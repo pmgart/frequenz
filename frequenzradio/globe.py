@@ -14,6 +14,7 @@ levels, click to select, double-click to focus, hover for a label. Picking runs 
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 import time
@@ -319,6 +320,9 @@ def _uniform_locations(program: int, names: tuple[str, ...]) -> dict[str, int]:
     return {name: gl.glGetUniformLocation(program, name) for name in names}
 
 
+log = logging.getLogger("frequenzradio.globe")
+
+
 class GlobeView(Gtk.GLArea):
     __gtype_name__ = "RGGlobeView"
 
@@ -345,6 +349,7 @@ class GlobeView(Gtk.GLArea):
         self._on_hover = on_hover
         self._on_focus = on_focus
         self._on_zoom = on_zoom
+        self.gl_error: str | None = None  # why the OpenGL view could not start, or None
         self.places: PlaceSet | None = None
         self._scales: np.ndarray | None = None
 
@@ -573,9 +578,21 @@ class GlobeView(Gtk.GLArea):
 
     # -- GL lifecycle ------------------------------------------------------------
     def _on_realize(self, area) -> None:
-        area.make_current()
-        if area.get_error() is not None:
-            return
+        self.gl_error = None
+        try:
+            area.make_current()
+            if area.get_error() is not None:
+                raise RuntimeError(area.get_error().message)
+            self._setup_gl(area)
+        except Exception as exc:  # no usable OpenGL context, e.g. a VM without 3D acceleration
+            self._gl_ready = False
+            self.gl_error = str(exc) or type(exc).__name__
+            log.warning("3D globe disabled: %s", self.gl_error)
+            if self._on_zoom is not None:  # let the window explain why the globe is empty
+                self._on_zoom(self.dist)
+            self.queue_render()
+
+    def _setup_gl(self, area) -> None:
         es = bool(area.get_context().get_use_es())
         self._es = es
         gl.glDisable(gl.GL_DEPTH_TEST)
