@@ -32,8 +32,10 @@ mkdir -p /root/rpmbuild/SOURCES /root/rpmbuild/SPECS /tmp/src
 cp "/work/frequenzradio-$VERSION.tar.gz" /root/rpmbuild/SOURCES/
 tar -xzf "/work/frequenzradio-$VERSION.tar.gz" -C /tmp/src
 cp "/tmp/src/frequenzradio-$VERSION/packaging/fedora/frequenz.spec" /root/rpmbuild/SPECS/
-echo "== build dependencies"
-dnf -y builddep /root/rpmbuild/SPECS/frequenz.spec
+echo "== build dependencies: install the build backend, generate the pyproject BuildRequires, install them"
+dnf -y -q install python3-setuptools python3-wheel
+rpmbuild -br /root/rpmbuild/SPECS/frequenz.spec > /tmp/buildreqs.log 2>&1 || tail -n 5 /tmp/buildreqs.log
+dnf -y builddep /root/rpmbuild/SRPMS/frequenz-*.buildreqs.nosrc.rpm
 echo "== rpmbuild (the %check section runs desktop-file-validate and pytest)"
 rpmbuild -ba /root/rpmbuild/SPECS/frequenz.spec
 cp /root/rpmbuild/RPMS/noarch/*.rpm /root/rpmbuild/SRPMS/*.rpm /out/
