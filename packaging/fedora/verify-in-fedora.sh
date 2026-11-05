@@ -51,8 +51,14 @@ echo "== frequenz doctor (the container has no display, so display and GL checks
 frequenz doctor || true
 echo "== window start-up under Xvfb (the catalog and map are absent, so the window starts empty)"
 dnf -y -q install xorg-x11-server-Xvfb xorg-x11-xauth
-FREQUENZ_SNAPSHOT=/out/frequenz-window.png FREQUENZ_SNAPSHOT_AFTER=6 timeout 120 xvfb-run -a frequenz
-test -s /out/frequenz-window.png && echo "window snapshot written: /out/frequenz-window.png"
+FREQUENZ_SNAPSHOT=/out/frequenz-window.png FREQUENZ_SNAPSHOT_AFTER=6 timeout 120 xvfb-run -a frequenz 2> /tmp/window.err
+test -s /out/frequenz-window.png
+echo "window snapshot written: /out/frequenz-window.png"
+grep "3D globe" /tmp/window.err || echo "OpenGL context available: no fallback message"
+echo "== same window with software OpenGL (informational)"
+GDK_DEBUG=gl-software FREQUENZ_SNAPSHOT=/out/frequenz-window-software-gl.png FREQUENZ_SNAPSHOT_AFTER=6 timeout 120 xvfb-run -a frequenz 2> /tmp/window-sw.err && echo "software OpenGL run: exit 0" || echo "software OpenGL run: failed (see log)"
+test -s /out/frequenz-window-software-gl.png && echo "software OpenGL snapshot written" || true
+grep "3D globe" /tmp/window-sw.err || echo "software OpenGL: no fallback message"
 '
 echo "RPMs in $OUT:"
 ls -1 "$OUT"
