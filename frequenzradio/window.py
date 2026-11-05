@@ -747,6 +747,10 @@ class MainWindow(Adw.ApplicationWindow):
         self.state.save()
         return GLib.SOURCE_CONTINUE
 
+    def stop_background_work(self) -> None:
+        """Ask the catalog download to stop; called when the application quits."""
+        self._sync_cancel.set()
+
     def _on_close_request(self, window) -> bool:
         self._persist_view()
         self.player.shutdown()
