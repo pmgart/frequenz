@@ -23,10 +23,13 @@ echo "source: frequenzradio-$VERSION.tar.gz ($(tar -tzf "$WORK/frequenzradio-$VE
 
 "$ENGINE" run --rm \
     -e "VERSION=$VERSION" \
+    -e "HOST_UID=$(id -u)" \
+    -e "HOST_GID=$(id -g)" \
     -v "$WORK:/work:ro" \
     -v "$OUT:/out" \
     "$IMAGE" bash -euo pipefail -c '
 echo "== $(cat /etc/fedora-release)"
+trap "chown -R $HOST_UID:$HOST_GID /out || true" EXIT
 dnf -y -q install rpm-build dnf-plugins-core dnf5-plugins pyproject-rpm-macros python3-devel desktop-file-utils
 mkdir -p /root/rpmbuild/SOURCES /root/rpmbuild/SPECS /tmp/src
 cp "/work/frequenzradio-$VERSION.tar.gz" /root/rpmbuild/SOURCES/
@@ -46,6 +49,10 @@ rpm -q frequenz
 desktop-file-validate /usr/share/applications/se.laps.Frequenz.desktop && echo "desktop file: valid"
 echo "== frequenz doctor (the container has no display, so display and GL checks may fail)"
 frequenz doctor || true
+echo "== window start-up under Xvfb (the catalog and map are absent, so the window starts empty)"
+dnf -y -q install xorg-x11-server-Xvfb xorg-x11-xauth
+FREQUENZ_SNAPSHOT=/out/frequenz-window.png FREQUENZ_SNAPSHOT_AFTER=6 timeout 120 xvfb-run -a frequenz
+test -s /out/frequenz-window.png && echo "window snapshot written: /out/frequenz-window.png"
 '
 echo "RPMs in $OUT:"
 ls -1 "$OUT"
