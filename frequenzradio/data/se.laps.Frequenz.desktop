@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=FREQUENZ
+GenericName=Internet Radio Globe
+Comment=Tune in to live radio stations around the world on a globe
+Exec=frequenz
+Icon=se.laps.Frequenz
+Terminal=false
+Categories=Audio;AudioVideo;Music;
+Keywords=radio;stream;globe;live;station;
+StartupNotify=true
+StartupWMClass=se.laps.Frequenz

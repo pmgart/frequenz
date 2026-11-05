@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "frequenzradio"
+version = "0.1.0"
+description = "FREQUENZ: native, local and ad-free radio globe for Linux (GTK 4, libadwaita, GStreamer), an unofficial client for radio.garden"
+readme = "README.md"
+requires-python = ">=3.11"
+# GTK 4, libadwaita, PyGObject and GStreamer come from the OS (python3-gi, gir1.2-gtk-4.0,
+# gir1.2-adw-1, gir1.2-gstreamer-1.0, gstreamer1.0-plugins-*). Create the venv with
+# --system-site-packages so the venv can import gi.
+dependencies = ["PyOpenGL>=3.1.7", "numpy>=1.26"]
+
+[project.optional-dependencies]
+build = ["shapely>=2.0"]         # only for 'frequenz build-globe' (vector map of the globe)
+test = ["pytest>=8"]
+
+[project.scripts]
+frequenz = "frequenzradio.cli:main"
+
+[tool.setuptools]
+packages = ["frequenzradio"]
+
+[tool.setuptools.package-data]
+frequenzradio = ["data/*", "data/icons/hicolor/scalable/apps/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

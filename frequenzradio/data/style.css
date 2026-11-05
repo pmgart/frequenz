@@ -1,0 +1,65 @@
+/* FREQUENZ: a restrained dark theme on top of libadwaita. */
+
+.rg-player {
+    background-color: alpha(@window_bg_color, 0.94);
+    border-top: 1px solid alpha(currentColor, 0.08);
+    padding: 6px 10px;
+}
+
+.rg-title {
+    font-weight: 700;
+    font-size: 1.05em;
+}
+
+.rg-status {
+    color: alpha(currentColor, 0.6);
+}
+
+.rg-status-live {
+    color: #43e6c0;
+    font-weight: 600;
+}
+
+.rg-now {
+    color: #43e6c0;
+}
+
+.rg-play {
+    min-width: 46px;
+    min-height: 46px;
+}
+
+.rg-hover {
+    background-color: alpha(black, 0.62);
+    color: white;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 0.9em;
+}
+
+.rg-globe-controls {
+    background-color: alpha(black, 0.35);
+    border-radius: 16px;
+    padding: 4px;
+}
+
+.rg-hint {
+    color: alpha(white, 0.72);
+    background-color: alpha(black, 0.35);
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-size: 0.85em;
+}
+
+.rg-zoom {
+    color: alpha(white, 0.8);
+    background-color: alpha(black, 0.35);
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-size: 0.85em;
+    font-feature-settings: "tnum";
+}
+
+.rg-window-title {
+    font-weight: 700;
+}
