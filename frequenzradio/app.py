@@ -21,6 +21,7 @@ class FrequenzApp(Adw.Application):
         self._snapshot_path = os.environ.get("FREQUENZ_SNAPSHOT")
         self.connect("startup", self._on_startup)
         self.connect("activate", self._on_activate)
+        self.connect("shutdown", self._on_shutdown)
 
     def _on_startup(self, app) -> None:
         Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
@@ -50,6 +51,11 @@ class FrequenzApp(Adw.Application):
                 GLib.timeout_add_seconds(int(os.environ.get("FREQUENZ_SNAPSHOT_AFTER", "6")),
                                          self._take_snapshot)
         self.window.present()
+
+    def _on_shutdown(self, app) -> None:
+        # Stop the background catalog download; otherwise the interpreter waits for its worker threads.
+        if self.window is not None:
+            self.window.stop_background_work()
 
     def _take_snapshot(self) -> bool:
         """Test hook: write the window's current rendering to PNG and quit."""
