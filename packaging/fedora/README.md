@@ -87,5 +87,5 @@ The first is wrong and the second was never measured. The corrected messages are
 
 - Add an AppStream metainfo file, so KDE Discover can list the app.
 - Run `rpmlint` on the spec and the RPM. It has not been run yet.
-- Name the copyright holder. The files do not say whether it is you personally or LAPS AB.
+- Copyright holder: LAPS AB, written by Pablo Magana (README and package metadata on `main`). The v0.1.0 RPM on the release predates this, so its README and metadata do not name the holder.
 - Decide whether the project goes public. The `URL:` in the spec points to the private repository.
