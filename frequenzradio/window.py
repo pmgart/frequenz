@@ -8,10 +8,8 @@ hands progress back with GLib.idle_add.
 from __future__ import annotations
 
 import dataclasses
-import json
 import logging
 import threading
-from dataclasses import dataclass, asdict, field
 
 import gi
 
@@ -23,8 +21,10 @@ from .api import BASE_URL, RadioGardenClient  # noqa: E402
 from .catalog import Catalog  # noqa: E402
 from . import geo  # noqa: E402
 from .globe import GlobeView, PlaceSet  # noqa: E402
-from .paths import APP_ID, APP_NAME, catalog_path, globe_dir, state_path  # noqa: E402
+from .paths import APP_ID, APP_NAME, catalog_path, globe_dir  # noqa: E402
 from .player import Player  # noqa: E402
+from .state import AppState  # noqa: E402
+from .theme import apply_scheme, normalize, other, window_class  # noqa: E402
 from .sync import SyncReport, sync_places, sync_stations  # noqa: E402
 
 log = logging.getLogger("frequenzradio.window")
@@ -42,34 +42,6 @@ PLAY_ICONS = {"playing": "media-playback-pause-symbolic", "buffering": "media-pl
 MAX_AUTO_SKIPS = 3
 
 
-@dataclass
-class AppState:
-    """Small UI state persisted between runs (never contains catalog data)."""
-
-    last_station: str | None = None
-    volume: float = 0.8
-    yaw: float = 0.0
-    pitch: float = 0.35
-    dist: float = 3.5
-    auto_rotate: bool = True
-    extra: dict = field(default_factory=dict)
-
-    @classmethod
-    def load(cls) -> "AppState":
-        path = state_path()
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
-        except (OSError, ValueError, TypeError):
-            return cls()
-
-    def save(self) -> None:
-        try:
-            state_path().write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
-        except OSError as exc:
-            log.warning("could not save state: %s", exc)
-
-
 def _place_subtitle(row) -> str:
     parts = [p for p in (row["place_title"], row["country"]) if p]
     return " · ".join(parts)
@@ -84,6 +56,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.set_size_request(760, 560)
         self.catalog = Catalog(catalog_path())
         self.state = AppState.load()
+        self.theme = normalize(self.state.theme)
+        self.add_css_class(window_class(self.theme))
+        apply_scheme(self.theme)
         self.places: PlaceSet | None = None
         self.selected_index: int | None = None
         self.playing_index: int | None = None
@@ -137,13 +112,9 @@ class MainWindow(Adw.ApplicationWindow):
         random_button.connect("clicked", lambda *_: self.play_random())
         header.pack_end(random_button)
 
-        menu = Gio.Menu()
-        menu.append("Update station catalog", "win.sync")
-        menu.append("Keyboard shortcuts", "win.shortcuts")
-        menu.append("About FREQUENZ", "win.about")
-        menu.append("Quit", "app.quit")
-        menu_button = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu, tooltip_text="Main menu")
-        header.pack_end(menu_button)
+        self.menu_button = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=self._menu_model(),
+                                          tooltip_text="Main menu")
+        header.pack_end(self.menu_button)
 
         # Globe in the content area, with floating hover label, zoom readout and controls.
         self.zoom_label = Gtk.Label(css_classes=["rg-zoom"], halign=Gtk.Align.START, valign=Gtk.Align.END,
@@ -276,12 +247,33 @@ class MainWindow(Adw.ApplicationWindow):
         bar.append(right)
         return bar
 
+    def _menu_model(self) -> Gio.Menu:
+        menu = Gio.Menu()
+        menu.append("Switch to light theme" if self.theme == "dark" else "Switch to dark theme", "win.theme")
+        menu.append("Update station catalog", "win.sync")
+        menu.append("Keyboard shortcuts", "win.shortcuts")
+        menu.append("About FREQUENZ", "win.about")
+        menu.append("Quit", "app.quit")
+        return menu
+
+    def _set_theme(self, theme_name: str) -> None:
+        """Switch the design tokens (dark or light) and remember the choice."""
+        self.theme = normalize(theme_name)
+        for name in ("fq-dark", "fq-light"):
+            self.remove_css_class(name)
+        self.add_css_class(window_class(self.theme))
+        apply_scheme(self.theme)
+        self.menu_button.set_menu_model(self._menu_model())
+        self.state.theme = self.theme
+        self.state.save()
+
     # -- actions and keys --------------------------------------------------------
     def _install_actions(self) -> None:
         for name, callback in [
             ("sync", lambda *_: self.start_sync()),
             ("about", lambda *_: self._show_about()),
             ("shortcuts", lambda *_: self._show_shortcuts()),
+            ("theme", lambda *_: self._set_theme(other(self.theme))),
         ]:
             action = Gio.SimpleAction.new(name, None)
             action.connect("activate", callback)

@@ -1,34 +1,149 @@
-/* FREQUENZ: a restrained dark theme on top of libadwaita. */
+/* FREQUENZ stylesheet, ui-v0.2 phase 1: design tokens and the rules that use them.
+ *
+ * The window carries fq-dark or fq-light (frequenzradio/theme.py). Custom properties are
+ * inherited by every widget in the window, so the rules below read them with var().
+ *
+ * Accent: lime #c5ff00 in both themes. On the light theme it is a flat fill, as chosen on
+ * 2026-11-06 ("today's approved look"). It measures 1.19:1 on white, below the 3:1 guideline
+ * for controls. tests/test_ui_tokens.py records that exception.
+ */
 
+.fq-dark {
+    --fq-accent: #c5ff00;
+    --fq-on-accent: #101212;
+    --fq-app-bg: #101214;
+    --fq-surface: #181a1d;
+    --fq-text: #f5f5f5;
+    --fq-text-muted: #b7b9bc;
+    --fq-divider: #393d41;
+    --fq-card-bg: #ffffff;
+    --fq-card-text: #111111;
+    --fq-now: #c5ff00;
+    --fq-live-text: #c5ff00;
+    --fq-focus: #c5ff00;
+    --fq-now-row: #101214;
+    --fq-now-row-text: #c5ff00;
+}
+
+.fq-light {
+    --fq-accent: #c5ff00;
+    --fq-on-accent: #101212;
+    --fq-app-bg: #f6f7f9;
+    --fq-surface: #ffffff;
+    --fq-text: #181b20;
+    --fq-text-muted: #555b63;
+    --fq-divider: #d4d8de;
+    --fq-card-bg: #ffffff;
+    --fq-card-text: #111111;
+    --fq-now: #181b20;
+    --fq-live-text: #181b20;
+    --fq-focus: #101212;
+    --fq-now-row: #101214;
+    --fq-now-row-text: #c5ff00;
+}
+
+/* Window chrome, painted from the tokens in both themes. Without this, the desktop's GTK theme
+ * (Tahoe-Dark on the workstation) keeps the header and sidebar dark even on the light theme.
+ */
+window.fq-dark,
+window.fq-light {
+    background-color: var(--fq-app-bg);
+}
+
+window.fq-dark headerbar,
+window.fq-light headerbar {
+    background-color: var(--fq-surface);
+    background-image: none;
+    color: var(--fq-text);
+    box-shadow: none;
+}
+
+window.fq-dark .sidebar-pane,
+window.fq-light .sidebar-pane {
+    background-color: var(--fq-surface);
+}
+
+window.fq-dark .boxed-list,
+window.fq-light .boxed-list {
+    background-color: var(--fq-surface);
+}
+
+window.fq-dark .rg-player button,
+window.fq-light .rg-player button {
+    color: var(--fq-text);
+}
+
+/* Player bar */
 .rg-player {
-    background-color: alpha(@window_bg_color, 0.94);
-    border-top: 1px solid alpha(currentColor, 0.08);
+    background-color: var(--fq-surface);
+    border-top: 1px solid var(--fq-divider);
     padding: 6px 10px;
 }
 
 .rg-title {
     font-weight: 700;
     font-size: 1.05em;
+    color: var(--fq-text);
 }
 
 .rg-status {
-    color: alpha(currentColor, 0.6);
+    color: var(--fq-text-muted);
 }
 
 .rg-status-live {
-    color: #43e6c0;
+    color: var(--fq-live-text);
     font-weight: 600;
 }
 
+/* Now-playing station in the list (phase 2 turns this row black on the light theme) */
 .rg-now {
-    color: #43e6c0;
+    color: var(--fq-now);
 }
 
-.rg-play {
+/* Volume slider: the libadwaita accent (blue) is replaced by the tokens. The thumb takes the text
+ * colour, so it stays visible on both bars (light on dark, dark on light).
+ */
+window.fq-dark .rg-player scale highlight,
+window.fq-light .rg-player scale highlight {
+    background-color: var(--fq-accent);
+}
+
+window.fq-dark .rg-player scale trough,
+window.fq-light .rg-player scale trough {
+    background-color: var(--fq-divider);
+}
+
+window.fq-dark .rg-player scale slider,
+window.fq-light .rg-player scale slider {
+    background-color: var(--fq-text);
+    border: none;
+    box-shadow: none;
+}
+
+/* Play / pause: a flat accent fill with an on-accent glyph. The window-level selector outranks
+ * libadwaita's suggested-action colour, which otherwise stays blue.
+ */
+window.fq-dark button.rg-play.suggested-action,
+window.fq-light button.rg-play.suggested-action {
     min-width: 46px;
     min-height: 46px;
+    background: var(--fq-accent);
+    background-image: none;
+    color: var(--fq-on-accent);
+    box-shadow: none;
 }
 
+window.fq-dark button.rg-play.suggested-action:hover,
+window.fq-light button.rg-play.suggested-action:hover {
+    opacity: 0.88;
+}
+
+window.fq-dark button.rg-play.suggested-action:focus-visible,
+window.fq-light button.rg-play.suggested-action:focus-visible {
+    outline-color: var(--fq-focus);
+}
+
+/* Globe overlays: translucent black over the globe, which stays dark in both themes */
 .rg-hover {
     background-color: alpha(black, 0.62);
     color: white;

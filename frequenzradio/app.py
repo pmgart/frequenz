@@ -24,13 +24,19 @@ class FrequenzApp(Adw.Application):
         self.connect("shutdown", self._on_shutdown)
 
     def _on_startup(self, app) -> None:
-        Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        from .state import AppState
+        from .theme import apply_scheme, normalize
+
+        apply_scheme(normalize(AppState.load().theme))
         provider = Gtk.CssProvider()
         provider.load_from_path(str(asset("style.css")))
         display = Gdk.Display.get_default()
         if display is not None:
+            # The design tokens must win over personal GTK CSS (for example ~/.config/gtk-4.0/gtk.css,
+            # which sets dark headerbar and sidebar colours). GTK ranks user CSS above app CSS, so the
+            # stylesheet is added at the user-override priority.
             Gtk.StyleContext.add_provider_for_display(display, provider,
-                                                      Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+                                                      Gtk.STYLE_PROVIDER_PRIORITY_USER)
             Gtk.IconTheme.get_for_display(display).add_search_path(str(asset("icons")))
         Gtk.Window.set_default_icon_name(APP_ID)
 
