@@ -9,6 +9,7 @@ description = "FREQUENZ: native, local and ad-free radio globe for Linux (GTK 4,
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
+authors = [{ name = "LAPS AB" }]
 requires-python = ">=3.11"
 # GTK 4, libadwaita, PyGObject and GStreamer come from the OS (python3-gi, gir1.2-gtk-4.0,
 # gir1.2-adw-1, gir1.2-gstreamer-1.0, gstreamer1.0-plugins-*). Create the venv with
