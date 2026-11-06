@@ -2,7 +2,6 @@
 # Build and check it in a clean Fedora container: packaging/fedora/verify-in-fedora.sh
 #
 # Open items before a Fedora review submission:
-#   - no LICENSE file exists yet: choose one and replace the License tag below
 #   - no AppStream metainfo file yet: KDE Discover will not list the app until one exists
 
 %global srcname frequenzradio
@@ -11,7 +10,7 @@ Name:           frequenz
 Version:        0.1.0
 Release:        1%{?dist}
 Summary:        Native, local and ad-free radio globe for Linux
-License:        LicenseRef-TODO-choose-a-license
+License:        GPL-3.0-or-later
 URL:            https://github.com/pmgart/frequenz
 Source0:        %{srcname}-%{version}.tar.gz
 BuildArch:      noarch

@@ -4,8 +4,8 @@
 #   packaging/fedora/verify-in-fedora.sh [docker|podman] [image]
 #
 # The source tarball is made from the working tree (tracked files plus new files that git does not
-# ignore). Commit first to test exactly what is committed. The RPMs are copied to $FREQUENZ_RPM_OUT
-# (default: ~/frequenz-rpm-out).
+# ignore). Commit first, so the RPM matches a commit. The RPMs, the source RPM and SHA256SUMS are
+# written to $FREQUENZ_RPM_OUT (default: ~/frequenz-rpm-out). Earlier results there are removed first.
 set -euo pipefail
 
 ENGINE="${1:-docker}"
@@ -17,6 +17,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 mkdir -p "$OUT"
+rm -f "$OUT"/frequenz-*
 (cd "$ROOT" && git ls-files -z -co --exclude-standard |
     tar --null -T - --transform "s,^,frequenzradio-$VERSION/," -czf "$WORK/frequenzradio-$VERSION.tar.gz")
 echo "source: frequenzradio-$VERSION.tar.gz ($(tar -tzf "$WORK/frequenzradio-$VERSION.tar.gz" | wc -l) entries)"
@@ -42,23 +43,29 @@ rpmbuild -br /root/rpmbuild/SPECS/frequenz.spec > /tmp/buildreqs.log 2>&1 || tai
 dnf -y builddep /root/rpmbuild/SRPMS/frequenz-*.buildreqs.nosrc.rpm
 echo "== rpmbuild (the %check section runs desktop-file-validate and pytest)"
 rpmbuild -ba /root/rpmbuild/SPECS/frequenz.spec
-cp /root/rpmbuild/RPMS/noarch/*.rpm /root/rpmbuild/SRPMS/*.rpm /out/
+cp /root/rpmbuild/RPMS/noarch/frequenz-*.noarch.rpm /root/rpmbuild/SRPMS/frequenz-*.src.rpm /out/
 echo "== install the RPM together with its runtime dependencies"
-dnf -y install /root/rpmbuild/RPMS/noarch/frequenz-*.rpm
+dnf -y install /root/rpmbuild/RPMS/noarch/frequenz-*.noarch.rpm
 rpm -q frequenz
+test "$(rpm -q --qf "%{LICENSE}" frequenz)" = "GPL-3.0-or-later"
+rpm -qL frequenz | grep -q "LICENSE$" || { echo "FAIL: LICENSE file is not in the package"; exit 1; }
+if rpm -qlp /root/rpmbuild/RPMS/noarch/frequenz-*.noarch.rpm | grep -E -q "[.](sqlite|apk)$"; then echo "FAIL: catalog or APK inside the package"; exit 1; fi
+echo "package checked: license GPL-3.0-or-later, LICENSE file present, no catalog or APK"
 desktop-file-validate /usr/share/applications/se.laps.Frequenz.desktop && echo "desktop file: valid"
-echo "== frequenz doctor (the container has no display, so display and GL checks may fail)"
+echo "== frequenz doctor (no display in the container, so the display and catalog lines are expected to warn)"
 frequenz doctor || true
-echo "== window start-up under Xvfb (the catalog and map are absent, so the window starts empty)"
+echo "== window start-up under Xvfb (no catalog or map here, so the window starts empty)"
 dnf -y -q install xorg-x11-server-Xvfb xorg-x11-xauth
-FREQUENZ_SNAPSHOT=/out/frequenz-window.png FREQUENZ_SNAPSHOT_AFTER=6 timeout 120 xvfb-run -a frequenz 2> /tmp/window.err
+FREQUENZ_SNAPSHOT=/out/frequenz-window.png FREQUENZ_SNAPSHOT_AFTER=6 timeout 120 xvfb-run -a sh -c "frequenz > /tmp/window.log 2>&1"
 test -s /out/frequenz-window.png
-echo "window snapshot written: /out/frequenz-window.png"
-grep "3D globe" /tmp/window.err || echo "OpenGL context available: no fallback message"
+if grep -q Traceback /tmp/window.log; then echo "FAIL: traceback during start-up"; cat /tmp/window.log; exit 1; fi
+echo "window start-up: exit 0, snapshot written, no traceback"
+if grep -q "3D globe disabled" /tmp/window.log; then echo "OpenGL: no usable context under Xvfb, so the fallback was shown (expected here)"; else echo "OpenGL: context available, no fallback"; fi
 echo "== same window with software OpenGL (informational)"
-GDK_DEBUG=gl-software FREQUENZ_SNAPSHOT=/out/frequenz-window-software-gl.png FREQUENZ_SNAPSHOT_AFTER=6 timeout 120 xvfb-run -a frequenz 2> /tmp/window-sw.err && echo "software OpenGL run: exit 0" || echo "software OpenGL run: failed (see log)"
+GDK_DEBUG=gl-software FREQUENZ_SNAPSHOT=/out/frequenz-window-software-gl.png FREQUENZ_SNAPSHOT_AFTER=6 timeout 120 xvfb-run -a sh -c "frequenz > /tmp/window-sw.log 2>&1" && echo "software OpenGL run: exit 0" || echo "software OpenGL run: failed (see /tmp/window-sw.log)"
 test -s /out/frequenz-window-software-gl.png && echo "software OpenGL snapshot written" || true
-grep "3D globe" /tmp/window-sw.err || echo "software OpenGL: no fallback message"
+if grep -q "3D globe disabled" /tmp/window-sw.log; then echo "software OpenGL: fallback shown"; else echo "software OpenGL: no fallback message"; fi
 '
-echo "RPMs in $OUT:"
-ls -1 "$OUT"
+(cd "$OUT" && sha256sum frequenz-*.noarch.rpm frequenz-*.src.rpm > SHA256SUMS)
+echo "RPMs and checksums in $OUT:"
+ls -1 "$OUT" | grep -v "[.]png$" || true
