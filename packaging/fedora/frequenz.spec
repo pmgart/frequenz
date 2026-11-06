@@ -7,7 +7,7 @@
 %global srcname frequenzradio
 
 Name:           frequenz
-Version:        0.1.0
+Version:        0.1.1
 Release:        1%{?dist}
 Summary:        Native, local and ad-free radio globe for Linux
 License:        GPL-3.0-or-later
@@ -70,5 +70,8 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/se.laps.Frequenz.desk
 %{_datadir}/icons/hicolor/scalable/apps/se.laps.Frequenz.svg
 
 %changelog
+* Fri Nov 06 2026 Pablo Magana <pablo@laps.se> - 0.1.1-1
+- Same program source as the Ubuntu package: version 0.1.1, copyright holder LAPS AB.
+
 * Thu Nov 05 2026 Pablo Magana <pablo@laps.se> - 0.1.0-1
 - Initial package
