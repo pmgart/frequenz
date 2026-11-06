@@ -666,6 +666,9 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _on_zoom_changed(self, distance: float) -> None:
         """Show the current zoom level and altitude; say so when the vector map is missing."""
+        if self.globe.gl_error:
+            self.zoom_label.set_label("3D globe unavailable: no usable OpenGL context")
+            return
         if not self.globe.vector_map_ready:
             self.zoom_label.set_label("Vector map not built: run 'frequenz build-globe'")
             return
