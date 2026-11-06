@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_auto_test:
+	desktop-file-validate frequenzradio/data/se.laps.Frequenz.desktop
+	python3 -m pytest -q
+
+override_dh_auto_install:
+	dh_auto_install
+	install -Dm644 frequenzradio/data/se.laps.Frequenz.desktop \
+		debian/frequenz/usr/share/applications/se.laps.Frequenz.desktop
+	install -Dm644 frequenzradio/data/icons/hicolor/scalable/apps/se.laps.Frequenz.svg \
+		debian/frequenz/usr/share/icons/hicolor/scalable/apps/se.laps.Frequenz.svg
