@@ -13,14 +13,14 @@ Both fixes listed below are on `main` as well.
 
 ```
 packaging/fedora/verify-in-fedora.sh docker fedora:latest
-sudo dnf install ./frequenz-0.1.0-1.fc45.noarch.rpm
+sudo dnf install ./frequenz-0.1.1-1.fc45.noarch.rpm
 ```
 
 The RPMs, the source RPM and `SHA256SUMS` are written to `~/frequenz-rpm-out` (override with `FREQUENZ_RPM_OUT`).
 
 ## Release
 
-`v0.1.0-fedora45` is a pre-release on the private repository, built from commit `27493d3`. It contains the
+`v0.1.1` is a pre-release on the private repository. It has the Fedora 45 and Ubuntu 26.04 packages, built from the same program source (commit `6cec9e1` on `main`). It contains the
 Fedora 45 RPM, the source RPM and `SHA256SUMS`.
 
 The package is for Fedora 45 only. It installs into Fedora 45's Python 3.15 path and will not run on other
@@ -36,7 +36,7 @@ releases. For another release, run the script with that image, for example `fedo
 | `python3dist(pyopengl)`, `python3dist(numpy)` | generated from the Python metadata |
 | `Recommends: python3-shapely` | only for `frequenz build-globe` |
 
-## Verified: Fedora 45 container, commit 27493d3
+## Verified: Fedora 45 container, version 0.1.1, built from 4252fd8
 
 | Check | Result |
 |---|---|
