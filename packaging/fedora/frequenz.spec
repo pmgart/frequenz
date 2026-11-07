@@ -7,7 +7,7 @@
 %global srcname frequenzradio
 
 Name:           frequenz
-Version:        0.2.0
+Version:        0.2.1
 Release:        1%{?dist}
 Summary:        Native, local and ad-free radio globe for Linux
 License:        GPL-3.0-or-later
@@ -71,6 +71,10 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/se.laps.Frequenz.desk
 %{_datadir}/icons/hicolor/scalable/apps/se.laps.Frequenz.svg
 
 %changelog
+* Sat Nov 07 2026 Pablo Magana <pablo@laps.se> - 0.2.1-1
+- Fix: the map-pin icon on the now-playing card is visible. It took the window's text colour,
+  which made it disappear on the card.
+
 * Sat Nov 07 2026 Pablo Magana <pablo@laps.se> - 0.2.0-1
 - New interface from the approved design: header with the light and dark switch, left rail,
   now-playing card, station list and player bar. Classic globe colours are an option in Preferences.
