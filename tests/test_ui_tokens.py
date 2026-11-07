@@ -25,12 +25,15 @@ TEXT_PAIRS = [
     ("now-row-text", "now-row"),
     ("now", "surface"),
     ("live-text", "surface"),
+    ("tile-text", "tile"),
+    ("card-muted", "card-bg"),
 ]
 NON_TEXT_PAIRS = [
     ("focus", "app-bg"),
     ("focus", "surface"),
     ("accent", "app-bg"),
     ("accent", "surface"),
+    ("text", "chip"),
 ]
 KNOWN_EXCEPTIONS = {
     ("light", "accent", "surface"): "flat lime fill on white (chosen 2026-11-06, 1.19:1)",

@@ -424,6 +424,12 @@ class GlobeView(Gtk.GLArea):
         self._last_interaction = time.monotonic()
         self.queue_render()
 
+    def zoom_to(self, distance: float) -> None:
+        """Animate to a camera distance (the zoom slider). The view keeps its angles."""
+        self._target = (self.yaw, self.pitch, geo.clamp_distance(distance))
+        self._last_interaction = time.monotonic()
+        self.queue_render()
+
     # -- GTK controllers ---------------------------------------------------------
     def _install_controllers(self) -> None:
         drag = Gtk.GestureDrag.new()

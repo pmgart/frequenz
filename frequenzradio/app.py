@@ -37,7 +37,9 @@ class FrequenzApp(Adw.Application):
             # stylesheet is added at the user-override priority.
             Gtk.StyleContext.add_provider_for_display(display, provider,
                                                       Gtk.STYLE_PROVIDER_PRIORITY_USER)
-            Gtk.IconTheme.get_for_display(display).add_search_path(str(asset("icons")))
+            icon_theme = Gtk.IconTheme.get_for_display(display)
+            icon_theme.add_search_path(str(asset("icons")))
+            icon_theme.add_search_path(str(asset("icons") / "symbolic"))
         Gtk.Window.set_default_icon_name(APP_ID)
 
         from gi.repository import Gio
