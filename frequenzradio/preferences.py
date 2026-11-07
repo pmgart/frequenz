@@ -13,6 +13,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gtk  # noqa: E402
 
 from . import __version__  # noqa: E402
+from .globe_palette import CLASSIC, LIME  # noqa: E402
 
 
 def _button(label: str, callback) -> Gtk.Button:
@@ -32,6 +33,11 @@ def open_preferences(window) -> Adw.PreferencesWindow:
     light.connect("notify::active",
                   lambda row, _pspec: window.set_theme_name("light" if row.get_active() else "dark"))
     appearance.add(light)
+    classic = Adw.SwitchRow(title="Classic globe colours", subtitle="Blue ocean and olive land")
+    classic.set_active(window.globe.palette_name == CLASSIC)
+    classic.connect("notify::active",
+                    lambda row, _pspec: window.set_globe_palette(CLASSIC if row.get_active() else LIME))
+    appearance.add(classic)
     page.add(appearance)
 
     globe = Adw.PreferencesGroup(title="Globe")

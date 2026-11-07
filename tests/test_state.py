@@ -49,3 +49,17 @@ def test_corrupt_file_gives_defaults(tmp_path, monkeypatch):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("not json at all", encoding="utf-8")
     assert AppState.load() == AppState()
+
+
+def test_globe_palette_defaults_to_lime_and_round_trips(tmp_path, monkeypatch):
+    _use_scratch_data_dir(tmp_path, monkeypatch)
+    assert AppState.load().globe_palette == "lime"
+    AppState(globe_palette="classic").save()
+    assert AppState.load().globe_palette == "classic"
+
+
+def test_unknown_globe_palette_in_the_file_falls_back_to_lime(tmp_path, monkeypatch):
+    path = _use_scratch_data_dir(tmp_path, monkeypatch)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"globe_palette": "neon"}), encoding="utf-8")
+    assert AppState.load().globe_palette == "lime"

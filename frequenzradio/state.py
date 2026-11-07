@@ -7,6 +7,7 @@ import logging
 from dataclasses import asdict, dataclass, field
 
 from .paths import state_path
+from .globe_palette import DEFAULT_PALETTE, normalize as normalize_palette
 from .theme import DEFAULT_THEME, normalize
 
 log = logging.getLogger("frequenzradio.state")
@@ -21,6 +22,7 @@ class AppState:
     dist: float = 3.5
     auto_rotate: bool = True
     theme: str = DEFAULT_THEME
+    globe_palette: str = DEFAULT_PALETTE
     extra: dict = field(default_factory=dict)
 
     @classmethod
@@ -32,6 +34,7 @@ class AppState:
         except (OSError, ValueError, TypeError, AttributeError):
             return cls()
         state.theme = normalize(state.theme)
+        state.globe_palette = normalize_palette(state.globe_palette)
         return state
 
     def save(self) -> None:

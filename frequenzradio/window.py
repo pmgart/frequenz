@@ -103,6 +103,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.globe.yaw, self.globe.pitch, self.globe.dist = (
             self.state.yaw, self.state.pitch, geo.clamp_distance(self.state.dist))
         self.globe.auto_rotate = self.state.auto_rotate
+        self.globe.set_palette(self.state.globe_palette)
+        self.globe.set_light_theme(self.theme == "light")
         overlay = Gtk.Overlay()
         overlay.set_child(self.globe)
 
@@ -310,6 +312,7 @@ class MainWindow(Adw.ApplicationWindow):
             self.remove_css_class(name)
         self.add_css_class(window_class(self.theme))
         apply_scheme(self.theme)
+        self.globe.set_light_theme(self.theme == "light")
         self.state.theme = self.theme
         self.state.save()
         self._sync_theme_toggles()
@@ -762,6 +765,12 @@ class MainWindow(Adw.ApplicationWindow):
         self.hover_label.set_margin_start(int(max(0, x + 14)))
         self.hover_label.set_margin_top(int(max(0, y + 14)))
         self.hover_label.set_visible(True)
+
+    def set_globe_palette(self, name: str) -> None:
+        """Switch the globe colours (lime or classic) and remember the choice."""
+        self.globe.set_palette(name)
+        self.state.globe_palette = self.globe.palette_name
+        self.state.save()
 
     def set_auto_rotate(self, active: bool) -> None:
         self.globe.auto_rotate = active
