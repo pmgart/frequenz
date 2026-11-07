@@ -104,7 +104,7 @@ def script(window):
         snapshot(window, "1-globe-greenwich.png")
         check("globe level shows the full map", geo.level_of_detail(globe.dist) == 0, f"dist {globe.dist:.2f}")
         print("  " + render_report("globe", 0), flush=True)
-        print(f"  zoom readout: {window.zoom_label.get_label()!r}", flush=True)
+        print(f"  zoom slider: {window.zoom_scale.get_value():.3f}", flush=True)
 
     yield 200, overview_done
 
@@ -139,7 +139,7 @@ def script(window):
         snapshot(window, "4-region-stockholm.png")
         check("region level uses the full 10 m data", geo.level_of_detail(globe.dist) == 2, f"dist {globe.dist:.3f}")
         print("  " + render_report("region", 2), flush=True)
-        print(f"  zoom readout: {window.zoom_label.get_label()!r}", flush=True)
+        print(f"  zoom slider: {window.zoom_scale.get_value():.3f}", flush=True)
 
     yield 200, region_done
 
@@ -164,7 +164,7 @@ def script(window):
         check("city level reaches 100 km altitude", abs(geo.altitude_km(globe.dist) - 100.0) < 1.0,
               f"altitude {geo.altitude_km(globe.dist):.1f} km")
         print("  " + render_report("city", 2), flush=True)
-        print(f"  zoom readout: {window.zoom_label.get_label()!r}", flush=True)
+        print(f"  zoom slider: {window.zoom_scale.get_value():.3f}", flush=True)
 
     yield 200, city_done
 

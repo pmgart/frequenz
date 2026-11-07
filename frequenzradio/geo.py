@@ -92,6 +92,21 @@ def zoom_level_name(distance: float, tolerance: float = 0.02) -> str | None:
     return None
 
 
+def zoom_fraction(distance: float) -> float:
+    """Zoom slider position for a camera distance: 1.0 at the closest level, 0.0 at the farthest.
+
+    The scale is logarithmic, so equal slider steps give equal zoom ratios.
+    """
+    low, high = math.log(MIN_DISTANCE), math.log(MAX_DISTANCE)
+    return (high - math.log(clamp_distance(distance))) / (high - low)
+
+
+def zoom_distance(fraction: float) -> float:
+    """Camera distance for a slider position (the inverse of zoom_fraction)."""
+    low, high = math.log(MIN_DISTANCE), math.log(MAX_DISTANCE)
+    return math.exp(high - min(1.0, max(0.0, fraction)) * (high - low))
+
+
 def level_of_detail(distance: float) -> int:
     """Detail of the vector data: 0 whole globe, 1 close globe, 2 region to city."""
     if distance < 1.5:

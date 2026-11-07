@@ -1,34 +1,355 @@
-/* FREQUENZ: a restrained dark theme on top of libadwaita. */
+/* FREQUENZ stylesheet, ui-v0.2 phase 2: design tokens and the window layout.
+ *
+ * The window carries fq-dark or fq-light (frequenzradio/theme.py). Custom properties are inherited
+ * by every widget in the window, and the rules below read them with var().
+ *
+ * Accent: lime #c5ff00 in both themes. On the light theme it is a flat fill, as chosen on
+ * 2026-11-06 ("today's approved look"). It measures 1.19:1 on white; tests/test_ui_tokens.py
+ * records that as the one exception. The wordmark's lime slashes follow the approved light
+ * reference.
+ */
 
+.fq-dark {
+    --fq-accent: #c5ff00;
+    --fq-on-accent: #101212;
+    --fq-app-bg: #101214;
+    --fq-panel: #101214;
+    --fq-surface: #181a1d;
+    --fq-text: #f5f5f5;
+    --fq-text-muted: #b7b9bc;
+    --fq-divider: #393d41;
+    --fq-card-bg: #ffffff;
+    --fq-card-text: #111111;
+    --fq-card-muted: #555b63;
+    --fq-tile: #101212;
+    --fq-tile-text: #f5f5f5;
+    --fq-chip: #181a1d;
+    --fq-now: #c5ff00;
+    --fq-live-text: #c5ff00;
+    --fq-focus: #c5ff00;
+    --fq-now-row: #101214;
+    --fq-now-row-text: #c5ff00;
+}
+
+.fq-light {
+    --fq-accent: #c5ff00;
+    --fq-on-accent: #101212;
+    --fq-app-bg: #f6f7f9;
+    --fq-panel: #ffffff;
+    --fq-surface: #ffffff;
+    --fq-text: #181b20;
+    --fq-text-muted: #555b63;
+    --fq-divider: #d4d8de;
+    --fq-card-bg: #101214;
+    --fq-card-text: #f5f5f5;
+    --fq-card-muted: #b7b9bc;
+    --fq-tile: #101212;
+    --fq-tile-text: #f5f5f5;
+    --fq-chip: #f1f3f6;
+    --fq-now: #181b20;
+    --fq-live-text: #181b20;
+    --fq-focus: #101212;
+    --fq-now-row: #101214;
+    --fq-now-row-text: #c5ff00;
+}
+
+/* Window chrome. The desktop's GTK theme (Tahoe-Dark on the workstation) must not show through. */
+window.fq-dark,
+window.fq-light {
+    background-color: var(--fq-app-bg);
+    font-family: "Inter", "Adwaita Sans", sans-serif;
+}
+
+window.fq-dark headerbar,
+window.fq-light headerbar {
+    background-color: var(--fq-app-bg);
+    background-image: none;
+    color: var(--fq-text);
+    box-shadow: none;
+    min-height: 55px;
+}
+
+window.fq-dark .sidebar-pane,
+window.fq-light .sidebar-pane {
+    background-color: var(--fq-panel);
+}
+
+/* Header: // FREQUENZ | THE WORLD IS ON AIR, and the sun/moon switch */
+.fq-slash {
+    color: var(--fq-accent);
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: -0.08em;
+}
+
+.fq-wordmark {
+    color: var(--fq-text);
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: 0.14em;
+}
+
+.fq-tagline {
+    color: var(--fq-text-muted);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+}
+
+separator.fq-rule {
+    background: var(--fq-divider);
+    min-width: 1px;
+    min-height: 18px;
+}
+
+separator.fq-hairline {
+    background: var(--fq-divider);
+    min-height: 1px;
+}
+
+.fq-theme-switch {
+    background: var(--fq-surface);
+    border-radius: 999px;
+    padding: 3px;
+}
+
+.fq-theme-option {
+    min-width: 34px;
+    min-height: 28px;
+    border-radius: 999px;
+    color: var(--fq-text-muted);
+}
+
+.fq-theme-option:checked {
+    background: var(--fq-accent);
+    color: var(--fq-on-accent);
+}
+
+/* Left rail */
+.fq-rail {
+    background: var(--fq-app-bg);
+    min-width: 88px;
+}
+
+.fq-rail-item {
+    min-width: 52px;
+    min-height: 52px;
+    border-radius: 14px;
+    color: var(--fq-text-muted);
+    background: transparent;
+}
+
+.fq-rail-item:checked {
+    background: var(--fq-accent);
+    color: var(--fq-on-accent);
+}
+
+.fq-rail-item image {
+    -gtk-icon-size: 22px;
+}
+
+/* The panel toggle is not a view, so it shows its state in neutral grey, and the lime stays on
+ * the view that is open (the globe, favorites or recent).
+ */
+.fq-rail-panel {
+    min-width: 52px;
+    min-height: 52px;
+    border-radius: 14px;
+    color: var(--fq-text-muted);
+    background: transparent;
+}
+
+.fq-rail-panel:checked {
+    background: rgba(127, 127, 127, 0.18);
+    color: var(--fq-text);
+}
+
+.fq-rail-panel image {
+    -gtk-icon-size: 22px;
+}
+
+/* Right panel: search, now-playing card, list */
+.fq-panel {
+    background: var(--fq-panel);
+}
+
+.fq-search {
+    background: var(--fq-surface);
+    border-radius: 999px;
+    min-height: 46px;
+    color: var(--fq-text);
+}
+
+.fq-card {
+    background: var(--fq-card-bg);
+    border-radius: 18px;
+    padding: 18px 22px;
+}
+
+.fq-pill {
+    background: var(--fq-accent);
+    color: var(--fq-on-accent);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+}
+
+.fq-card-title {
+    color: var(--fq-card-text);
+    font-size: 30px;
+    font-weight: 800;
+}
+
+.fq-card-place {
+    color: var(--fq-card-muted);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+}
+
+.fq-card-action {
+    color: var(--fq-card-text);
+    background: transparent;
+    min-width: 36px;
+    min-height: 36px;
+}
+
+.fq-section-title {
+    color: var(--fq-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+}
+
+.fq-section-count {
+    color: var(--fq-text-muted);
+    font-size: 11px;
+}
+
+listbox.fq-list {
+    background: transparent;
+}
+
+listbox.fq-list > row {
+    background: transparent;
+    padding: 0;
+    min-height: 0;
+}
+
+.fq-row-title {
+    color: var(--fq-text);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.fq-row-place {
+    color: var(--fq-text-muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+}
+
+.fq-row-play {
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: 10px;
+    background: var(--fq-chip);
+    color: var(--fq-text);
+}
+
+.fq-row-fav {
+    min-width: 34px;
+    min-height: 34px;
+    background: transparent;
+    color: var(--fq-text-muted);
+}
+
+.fq-row-fav:checked {
+    color: var(--fq-text);
+}
+
+/* Now-playing station in the list */
+.rg-now {
+    color: var(--fq-now);
+}
+
+/* Player bar: monogram tile, title and location | transport | volume */
 .rg-player {
-    background-color: alpha(@window_bg_color, 0.94);
-    border-top: 1px solid alpha(currentColor, 0.08);
-    padding: 6px 10px;
+    background: var(--fq-surface);
+}
+
+.fq-tile {
+    background: var(--fq-tile);
+    color: var(--fq-tile-text);
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
 }
 
 .rg-title {
+    color: var(--fq-text);
+    font-size: 16px;
     font-weight: 700;
-    font-size: 1.05em;
 }
 
-.rg-status {
-    color: alpha(currentColor, 0.6);
+.fq-place {
+    color: var(--fq-text-muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
 }
 
-.rg-status-live {
-    color: #43e6c0;
-    font-weight: 600;
+.fq-transport {
+    color: var(--fq-text);
+    min-width: 44px;
+    min-height: 44px;
 }
 
-.rg-now {
-    color: #43e6c0;
+.fq-transport image {
+    -gtk-icon-size: 20px;
 }
 
-.rg-play {
-    min-width: 46px;
-    min-height: 46px;
+window.fq-dark button.rg-play,
+window.fq-light button.rg-play {
+    min-width: 64px;
+    min-height: 64px;
+    border-radius: 999px;
+    background: var(--fq-accent);
+    background-image: none;
+    color: var(--fq-on-accent);
+    box-shadow: none;
 }
 
+window.fq-dark button.rg-play image,
+window.fq-light button.rg-play image {
+    -gtk-icon-size: 26px;
+}
+
+window.fq-dark button.rg-play:hover,
+window.fq-light button.rg-play:hover {
+    opacity: 0.9;
+}
+
+/* Volume slider: the libadwaita accent (blue) is replaced by the tokens. The thumb takes the text
+ * colour, so it stays visible on both bars (light on dark, dark on light).
+ */
+window.fq-dark .rg-player scale highlight,
+window.fq-light .rg-player scale highlight {
+    background-color: var(--fq-accent);
+}
+
+window.fq-dark .rg-player scale trough,
+window.fq-light .rg-player scale trough {
+    background-color: var(--fq-divider);
+}
+
+window.fq-dark .rg-player scale slider,
+window.fq-light .rg-player scale slider {
+    background-color: var(--fq-text);
+    border: none;
+    box-shadow: none;
+}
+
+/* Globe overlays: translucent dark glass, because the globe stays dark in both themes */
 .rg-hover {
     background-color: alpha(black, 0.62);
     color: white;
@@ -37,29 +358,68 @@
     font-size: 0.9em;
 }
 
-.rg-globe-controls {
-    background-color: alpha(black, 0.35);
+.fq-zoom {
+    background: alpha(black, 0.45);
     border-radius: 16px;
-    padding: 4px;
+    padding: 6px;
 }
 
-.rg-hint {
-    color: alpha(white, 0.72);
-    background-color: alpha(black, 0.35);
+/* Zoom buttons sit on the dark globe in both themes, so their glyphs are light. The rule names the
+ * button type as well as the class, so that libadwaita's flat-button colour does not win.
+ */
+button.fq-zoom-button {
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: 10px;
+    color: #f5f5f5;
+    background: transparent;
+}
+
+button.fq-zoom-button image {
+    -gtk-icon-size: 18px;
+    color: #f5f5f5;
+}
+
+/* Empty states in the right panel: libadwaita takes the status page's text colour from the desktop
+ * theme, which can be light on the light scheme. The tokens set it explicitly.
+ */
+window.fq-dark statuspage,
+window.fq-light statuspage {
+    color: var(--fq-text);
+}
+
+window.fq-dark statuspage label,
+window.fq-light statuspage label {
+    color: var(--fq-text);
+}
+
+window.fq-dark statuspage image,
+window.fq-light statuspage image {
+    color: var(--fq-text-muted);
+}
+
+scale.fq-zoom-scale trough {
+    background: alpha(white, 0.25);
+    min-width: 4px;
+    border-radius: 4px;
+}
+
+scale.fq-zoom-scale highlight {
+    background: var(--fq-accent);
+    border-radius: 4px;
+}
+
+scale.fq-zoom-scale slider {
+    background: var(--fq-accent);
+    min-width: 16px;
+    min-height: 16px;
     border-radius: 999px;
-    padding: 4px 14px;
-    font-size: 0.85em;
+    border: none;
 }
 
-.rg-zoom {
-    color: alpha(white, 0.8);
-    background-color: alpha(black, 0.35);
-    border-radius: 999px;
-    padding: 4px 14px;
-    font-size: 0.85em;
-    font-feature-settings: "tnum";
-}
-
-.rg-window-title {
-    font-weight: 700;
+.fq-globe-note {
+    color: alpha(white, 0.9);
+    background: alpha(black, 0.55);
+    border-radius: 12px;
+    padding: 8px 14px;
 }

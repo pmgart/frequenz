@@ -34,3 +34,24 @@ def clean_text(value: str | None) -> str:
             continue
         pieces.append(char)
     return " ".join("".join(pieces).split())
+
+
+# Words that carry no name of their own when a tile label is built ("Radio X" -> "X").
+_TILE_SKIP_WORDS = frozenset({"radio", "the"})
+
+
+def monogram(title: str | None) -> str:
+    """Text for a station's monogram tile: the first word that is not "radio" or "the", its first
+    three letters in capitals. "NTS Radio" -> "NTS", "Rinse FM" -> "RIN", "Radio X" -> "X",
+    "BBC Radio 6 Music" -> "BBC". A dot when no usable word is left."""
+    for word in clean_text(title).split():
+        letters = "".join(ch for ch in word if ch.isalnum())
+        if letters and letters.lower() not in _TILE_SKIP_WORDS:
+            return letters[:3].upper()
+    return "•"
+
+
+def format_location(place: str | None, country: str | None) -> str:
+    """Location line in capitals: "LONDON, UNITED KINGDOM". Missing parts are left out."""
+    parts = (clean_text(place), clean_text(country))
+    return ", ".join(part for part in parts if part).upper()

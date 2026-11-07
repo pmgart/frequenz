@@ -49,27 +49,20 @@ FOCUS_DISTANCE = 3.3  # zoom used when turning to a place: the whole sphere stay
 STATE_NORMAL, STATE_HOVER, STATE_SELECTED, STATE_PLAYING = 0.0, 1.0, 2.0, 3.0
 SUN_REFRESH_S = 60.0
 
-# Colours (sRGB). The ocean is one colour: the depth bands are not drawn (see geodata.SOURCES).
-BACKGROUND = (0.012, 0.016, 0.03)
-ATMOSPHERE = (0.34, 0.62, 1.0)
-OCEAN = (0.07, 0.24, 0.37)
-LAND = (0.34, 0.42, 0.23)
-LAKE = (0.14, 0.40, 0.50)
-ICE = (0.88, 0.93, 0.97)
-BORDER = (0.86, 0.90, 0.84, 0.30)
-RIVER = (0.36, 0.64, 0.90, 0.50)
-DOT = (0.82, 1.0, 0.95, 0.9)
-ACCENT = (0.26, 0.90, 0.75, 1.0)
+from .globe_palette import DEFAULT_PALETTE, LIGHT_BACKDROP, get_palette  # noqa: E402
+
+# Colours come from the active palette (globe_palette.py): lime by default, or the classic blue
+# ocean and olive land. AMBIENT is the same in both palettes.
 AMBIENT = 0.22  # brightness of the night side: keeps coasts readable without hiding the terminator
 
-# Painter's order. Each entry: (layer, colour, specular strength, land mottling).
+# Painter's order. Each entry: (layer, palette field, specular strength, land mottling).
 SURFACE_DRAWS = (
-    ("base", OCEAN, 0.35, 0.0),
-    ("land", LAND, 0.0, 0.14),
-    ("lakes", LAKE, 0.5, 0.0),
-    ("ice", ICE, 0.25, 0.0),
+    ("base", "ocean", 0.35, 0.0),
+    ("land", "land", 0.0, 0.14),
+    ("lakes", "lake", 0.5, 0.0),
+    ("ice", "ice", 0.25, 0.0),
 )
-LINE_DRAWS = (("borders", BORDER), ("rivers", RIVER))
+LINE_DRAWS = (("borders", "border"), ("rivers", "river"))
 
 SHADER_CONSTANTS = {"__INV_POLE_SQ__": f"{geo.INV_POLE_SCALE_SQ:.9f}"}
 
@@ -93,6 +86,7 @@ uniform vec3 u_eye;
 uniform float u_ambient;
 uniform float u_gloss;
 uniform float u_mottle;
+uniform vec3 u_rim;
 out vec4 frag;
 
 float hash3(vec3 p) {
@@ -130,7 +124,7 @@ void main() {
     }
     vec3 c = col * light;
     float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0);
-    c += rim * day * 0.25 * vec3(0.30, 0.55, 1.0);
+    c += rim * day * 0.25 * u_rim;
     if (u_gloss > 0.0) {
         vec3 h = normalize(u_sun + v);
         float spec = pow(max(dot(n, h), 0.0), 420.0);
@@ -198,9 +192,19 @@ layout(location = 2) in float a_state;
 uniform mat4 u_mvp;
 uniform vec3 u_eye;
 uniform float u_px;
+uniform float u_marked_pass;
 out float v_alpha;
 out float v_state;
 void main() {
+    // Pass 0 draws the places that are neither selected nor playing; pass 1 draws only those two.
+    // Drawing the marked places last keeps a dense neighbourhood (London) from covering the marker.
+    if ((a_state >= 2.0) != (u_marked_pass > 0.5)) {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        gl_PointSize = 0.0;
+        v_alpha = 0.0;
+        v_state = 0.0;
+        return;
+    }
     vec3 n = normalize(vec3(a_pos.x, a_pos.y * __INV_POLE_SQ__, a_pos.z));
     float facing = dot(n, normalize(u_eye - a_pos));
     if (facing <= 0.0) {
@@ -213,6 +217,8 @@ void main() {
     gl_Position = u_mvp * vec4(a_pos, 1.0);
     float grow = (a_state == 1.0) ? 1.6 : ((a_state >= 2.0) ? 1.9 : 1.0);
     gl_PointSize = u_px * a_scale * grow;
+    // The station being played keeps a visible size at every zoom level: a 2 px dot is not a marker.
+    if (a_state >= 3.0) gl_PointSize = max(gl_PointSize, 4.5 * u_px);
     v_alpha = smoothstep(0.0, 0.2, facing);
     v_state = a_state;
 }
@@ -224,6 +230,7 @@ in float v_alpha;
 in float v_state;
 uniform vec4 u_dot;
 uniform vec4 u_accent;
+uniform vec4 u_playing;
 uniform float u_time;
 out vec4 frag;
 void main() {
@@ -237,6 +244,7 @@ void main() {
     if (v_state >= 2.0) {
         col = u_accent;
         if (v_state >= 3.0) {
+            col = u_playing;
             float pulse = 0.55 + 0.35 * sin(u_time * 5.0);
             float ring = smoothstep(0.12, 0.0, abs(r - pulse));
             alpha = max(edge * 0.9, ring);
@@ -364,6 +372,8 @@ class GlobeView(Gtk.GLArea):
         self._last_interaction = time.monotonic()
         self._target: tuple[float, float, float] | None = None
         self.auto_rotate = True
+        self._palette = get_palette(DEFAULT_PALETTE)
+        self._light_theme = False
         self.hovered: int | None = None
         self.selected: int | None = None
         self.playing: int | None = None
@@ -394,6 +404,23 @@ class GlobeView(Gtk.GLArea):
         self._state_dirty = True
         self.queue_render()
 
+    @property
+    def palette_name(self) -> str:
+        return self._palette.name
+
+    def set_palette(self, name: str) -> None:
+        """Switch the globe colours (lime or classic). Colours are uniforms, so nothing is rebuilt."""
+        self._palette = get_palette(name)
+        self.queue_render()
+
+    def set_light_theme(self, light: bool) -> None:
+        """The backdrop behind the globe follows the window theme; the sphere stays dark."""
+        self._light_theme = bool(light)
+        self.queue_render()
+
+    def _current_backdrop(self) -> tuple:
+        return LIGHT_BACKDROP if self._light_theme else self._palette.background
+
     def set_states(self, *, hovered: int | None = None, selected: int | None = None, playing: int | None = None) -> None:
         self.hovered = hovered
         self.selected = selected
@@ -421,6 +448,12 @@ class GlobeView(Gtk.GLArea):
     def zoom_step(self, direction: int) -> None:
         """Move one zoom level closer (direction > 0) or farther (direction < 0), animated."""
         self._target = (self.yaw, self.pitch, geo.next_zoom_distance(self.dist, direction))
+        self._last_interaction = time.monotonic()
+        self.queue_render()
+
+    def zoom_to(self, distance: float) -> None:
+        """Animate to a camera distance (the zoom slider). The view keeps its angles."""
+        self._target = (self.yaw, self.pitch, geo.clamp_distance(distance))
         self._last_interaction = time.monotonic()
         self.queue_render()
 
@@ -605,11 +638,11 @@ class GlobeView(Gtk.GLArea):
         self._points_program = _compile(POINTS_VS, POINTS_FS, es)
         self._uniforms = {
             "surface": _uniform_locations(self._surface_program,
-                                          ("u_mvp", "u_color", "u_gloss", "u_mottle", "u_sun", "u_eye", "u_ambient")),
+                                          ("u_mvp", "u_color", "u_gloss", "u_mottle", "u_sun", "u_eye", "u_ambient", "u_rim")),
             "line": _uniform_locations(self._line_program, ("u_mvp", "u_color", "u_eye")),
             "halo": _uniform_locations(self._halo_program, ("u_center", "u_radius", "u_sun_dir", "u_bg", "u_atmo")),
             "points": _uniform_locations(self._points_program,
-                                         ("u_mvp", "u_eye", "u_px", "u_dot", "u_accent", "u_time")),
+                                         ("u_mvp", "u_eye", "u_px", "u_dot", "u_accent", "u_playing", "u_time", "u_marked_pass")),
         }
         self._empty_vao = gl.glGenVertexArrays(1)  # the halo is generated from gl_VertexID
         self._meshes = {}
@@ -728,7 +761,8 @@ class GlobeView(Gtk.GLArea):
         device_w = max(1, int(round(width * scale)))
         device_h = max(1, int(round(height * scale)))
         gl.glViewport(0, 0, device_w, device_h)
-        gl.glClearColor(BACKGROUND[0], BACKGROUND[1], BACKGROUND[2], 1.0)
+        backdrop = self._current_backdrop()
+        gl.glClearColor(backdrop[0], backdrop[1], backdrop[2], 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
 
         model = geo.model_matrix(self.yaw, self.pitch)
@@ -746,18 +780,19 @@ class GlobeView(Gtk.GLArea):
         gl.glCullFace(gl.GL_BACK)
         gl.glFrontFace(gl.GL_CCW)
         gl.glDisable(gl.GL_BLEND)
-        for layer, colour, gloss, mottle in SURFACE_DRAWS:
+        palette = self._palette
+        for layer, field, gloss, mottle in SURFACE_DRAWS:
             mesh = self._mesh(layer, lod)
             if mesh is not None:
-                self._draw_surface(mesh, mvp, colour, gloss, mottle, eye, sun)
+                self._draw_surface(mesh, mvp, getattr(palette, field), gloss, mottle, eye, sun)
 
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-        for layer, colour in LINE_DRAWS:
+        for layer, field in LINE_DRAWS:
             if lod in geodata.LINE_LODS.get(layer, ()):
                 mesh = self._mesh(layer, lod)
                 if mesh is not None:
-                    self._draw_lines(mesh, mvp, colour, eye)
+                    self._draw_lines(mesh, mvp, getattr(palette, field), eye)
 
         if self.places is not None and len(self.places.ids):
             if self._needs_upload:
@@ -770,11 +805,16 @@ class GlobeView(Gtk.GLArea):
             gl.glUniform3f(u["u_eye"], float(eye[0]), float(eye[1]), float(eye[2]))
             base_px = 2.6 * scale * min(2.0, (geo.DEFAULT_DISTANCE / self.dist) ** 0.5)
             gl.glUniform1f(u["u_px"], base_px)
-            gl.glUniform4f(u["u_dot"], *DOT)
-            gl.glUniform4f(u["u_accent"], *ACCENT)
+            gl.glUniform4f(u["u_dot"], *palette.dot)
+            gl.glUniform4f(u["u_accent"], *palette.selected)
+            gl.glUniform4f(u["u_playing"], *palette.playing)
             gl.glUniform1f(u["u_time"], time.monotonic() - self._started)
             gl.glBindVertexArray(self._points_vao)
-            gl.glDrawArrays(gl.GL_POINTS, 0, self.places.xyz.shape[0])
+            count = self.places.xyz.shape[0]
+            gl.glUniform1f(u["u_marked_pass"], 0.0)
+            gl.glDrawArrays(gl.GL_POINTS, 0, count)
+            gl.glUniform1f(u["u_marked_pass"], 1.0)
+            gl.glDrawArrays(gl.GL_POINTS, 0, count)
         gl.glBindVertexArray(0)
         return True
 
@@ -792,8 +832,10 @@ class GlobeView(Gtk.GLArea):
         gl.glUniform2f(u["u_center"], device_w / 2.0, device_h / 2.0)
         gl.glUniform1f(u["u_radius"], radius)
         gl.glUniform2f(u["u_sun_dir"], float(sun_dir[0]), float(sun_dir[1]))
-        gl.glUniform3f(u["u_bg"], BACKGROUND[0], BACKGROUND[1], BACKGROUND[2])
-        gl.glUniform3f(u["u_atmo"], ATMOSPHERE[0], ATMOSPHERE[1], ATMOSPHERE[2])
+        backdrop = self._current_backdrop()
+        atmosphere = self._palette.atmosphere
+        gl.glUniform3f(u["u_bg"], backdrop[0], backdrop[1], backdrop[2])
+        gl.glUniform3f(u["u_atmo"], atmosphere[0], atmosphere[1], atmosphere[2])
         gl.glBindVertexArray(self._empty_vao)
         gl.glDrawArrays(gl.GL_TRIANGLES, 0, 3)
 
@@ -808,6 +850,7 @@ class GlobeView(Gtk.GLArea):
         gl.glUniform3f(u["u_sun"], float(sun[0]), float(sun[1]), float(sun[2]))
         gl.glUniform3f(u["u_eye"], float(eye[0]), float(eye[1]), float(eye[2]))
         gl.glUniform1f(u["u_ambient"], AMBIENT)
+        gl.glUniform3f(u["u_rim"], *self._palette.rim)
         gl.glBindVertexArray(mesh.vao)
         gl.glDrawElements(gl.GL_TRIANGLES, mesh.count, gl.GL_UNSIGNED_INT, None)
 
