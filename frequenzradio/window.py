@@ -8,10 +8,8 @@ hands progress back with GLib.idle_add.
 from __future__ import annotations
 
 import dataclasses
-import json
 import logging
 import threading
-from dataclasses import dataclass, asdict, field
 
 import gi
 
@@ -23,56 +21,21 @@ from .api import BASE_URL, RadioGardenClient  # noqa: E402
 from .catalog import Catalog  # noqa: E402
 from . import geo  # noqa: E402
 from .globe import GlobeView, PlaceSet  # noqa: E402
-from .paths import APP_ID, APP_NAME, catalog_path, globe_dir, state_path  # noqa: E402
+from .paths import APP_ID, APP_NAME, catalog_path, globe_dir  # noqa: E402
 from .player import Player  # noqa: E402
+from .state import AppState  # noqa: E402
+from .theme import apply_scheme, normalize, other, window_class  # noqa: E402
 from .sync import SyncReport, sync_places, sync_stations  # noqa: E402
+from .preferences import open_preferences  # noqa: E402
+from .text import format_location, monogram  # noqa: E402
+from .widgets import LiveCard, Rail, SectionHeading, icon  # noqa: E402
 
 log = logging.getLogger("frequenzradio.window")
 
-STATUS_TEXT = {
-    "loading": "Connecting…",
-    "playing": "Live",
-    "buffering": "Buffering…",
-    "paused": "Paused",
-    "stopped": "",
-    "error": "Unavailable",
-}
-PLAY_ICONS = {"playing": "media-playback-pause-symbolic", "buffering": "media-playback-pause-symbolic",
-              "loading": "media-playback-pause-symbolic"}
+# States in which the primary button shows pause: the stream runs or is starting.
+PAUSE_STATES = frozenset({"playing", "buffering", "loading"})
+PLAYER_HEIGHT = 152
 MAX_AUTO_SKIPS = 3
-
-
-@dataclass
-class AppState:
-    """Small UI state persisted between runs (never contains catalog data)."""
-
-    last_station: str | None = None
-    volume: float = 0.8
-    yaw: float = 0.0
-    pitch: float = 0.35
-    dist: float = 3.5
-    auto_rotate: bool = True
-    extra: dict = field(default_factory=dict)
-
-    @classmethod
-    def load(cls) -> "AppState":
-        path = state_path()
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
-        except (OSError, ValueError, TypeError):
-            return cls()
-
-    def save(self) -> None:
-        try:
-            state_path().write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
-        except OSError as exc:
-            log.warning("could not save state: %s", exc)
-
-
-def _place_subtitle(row) -> str:
-    parts = [p for p in (row["place_title"], row["country"]) if p]
-    return " · ".join(parts)
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -80,10 +43,13 @@ class MainWindow(Adw.ApplicationWindow):
 
     def __init__(self, app: Adw.Application) -> None:
         super().__init__(application=app, title=APP_NAME)
-        self.set_default_size(1280, 820)
-        self.set_size_request(760, 560)
+        self.set_default_size(1440, 900)
+        self.set_size_request(1100, 720)
         self.catalog = Catalog(catalog_path())
         self.state = AppState.load()
+        self.theme = normalize(self.state.theme)
+        self.add_css_class(window_class(self.theme))
+        apply_scheme(self.theme)
         self.places: PlaceSet | None = None
         self.selected_index: int | None = None
         self.playing_index: int | None = None
@@ -98,6 +64,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._sync_cancel = threading.Event()
         self._search_timeout = 0
         self._suppress_volume = False
+        self._zoom_guard = False
 
         self.player = Player()
         self.player.on_state = self._on_player_state
@@ -120,35 +87,12 @@ class MainWindow(Adw.ApplicationWindow):
 
     # -- layout ------------------------------------------------------------------
     def _build_ui(self) -> None:
-        header = Adw.HeaderBar()
-        self.search = Gtk.SearchEntry(placeholder_text="Search stations, places, countries", width_chars=30)
-        self.search.connect("search-changed", self._on_search_changed)
-        self.search.connect("activate", lambda *_: self._run_search(self.search.get_text()))
-        header.set_title_widget(self.search)
-
-        self.sidebar_button = Gtk.ToggleButton(icon_name="sidebar-show-symbolic", tooltip_text="Show station list")
-        self.sidebar_button.set_active(True)
-        header.pack_start(self.sidebar_button)
-
-        self.favorites_button = Gtk.ToggleButton(icon_name="starred-symbolic", tooltip_text="Favorites (F)")
-        self.favorites_button.connect("toggled", self._on_favorites_toggled)
-        header.pack_end(self.favorites_button)
-        random_button = Gtk.Button(icon_name="media-playlist-shuffle-symbolic", tooltip_text="Random station (R)")
-        random_button.connect("clicked", lambda *_: self.play_random())
-        header.pack_end(random_button)
-
-        menu = Gio.Menu()
-        menu.append("Update station catalog", "win.sync")
-        menu.append("Keyboard shortcuts", "win.shortcuts")
-        menu.append("About FREQUENZ", "win.about")
-        menu.append("Quit", "app.quit")
-        menu_button = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu, tooltip_text="Main menu")
-        header.pack_end(menu_button)
-
-        # Globe in the content area, with floating hover label, zoom readout and controls.
-        self.zoom_label = Gtk.Label(css_classes=["rg-zoom"], halign=Gtk.Align.START, valign=Gtk.Align.END,
-                                    margin_start=16, margin_bottom=16)
-        self.zoom_label.set_can_target(False)
+        header = self._build_header()
+        self.rail = self._build_rail()
+        self.zoom_scale = self._build_zoom_scale()
+        self.globe_note = Gtk.Label(css_classes=["fq-globe-note"], halign=Gtk.Align.CENTER,
+                                    valign=Gtk.Align.CENTER, wrap=True, visible=False)
+        self.globe_note.set_can_target(False)
         self.globe = GlobeView(
             globe_dir(),
             on_select=self._on_globe_select,
@@ -159,6 +103,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.globe.yaw, self.globe.pitch, self.globe.dist = (
             self.state.yaw, self.state.pitch, geo.clamp_distance(self.state.dist))
         self.globe.auto_rotate = self.state.auto_rotate
+        self.globe.set_palette(self.state.globe_palette)
+        self.globe.set_light_theme(self.theme == "light")
         overlay = Gtk.Overlay()
         overlay.set_child(self.globe)
 
@@ -166,115 +112,210 @@ class MainWindow(Adw.ApplicationWindow):
         self.hover_label.set_visible(False)
         self.hover_label.set_can_target(False)
         overlay.add_overlay(self.hover_label)
-        overlay.add_overlay(self.zoom_label)
-
-        controls = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, css_classes=["rg-globe-controls"],
-                           halign=Gtk.Align.END, valign=Gtk.Align.END, margin_end=16, margin_bottom=16)
-        for icon, tip, action in [
-            ("zoom-in-symbolic", "Zoom in one level (+)", lambda: self.globe.zoom_step(1)),
-            ("zoom-out-symbolic", "Zoom out one level (-)", lambda: self.globe.zoom_step(-1)),
-            ("find-location-symbolic", "Reset view (0)", self.globe.reset_view),
-        ]:
-            button = Gtk.Button(icon_name=icon, tooltip_text=tip, css_classes=["flat", "circular"])
-            button.connect("clicked", lambda _b, a=action: a())
-            controls.append(button)
-        self.rotate_button = Gtk.ToggleButton(icon_name="view-refresh-symbolic", tooltip_text="Slow auto-rotate",
-                                              css_classes=["flat", "circular"], active=self.globe.auto_rotate)
-        self.rotate_button.connect("toggled", self._on_rotate_toggled)
-        controls.append(self.rotate_button)
-        overlay.add_overlay(controls)
-
-        self.hint = Gtk.Label(label="Drag to turn · scroll or +/− to zoom · click a dot to tune in · double-click to zoom",
-                              css_classes=["rg-hint"], valign=Gtk.Align.END, margin_bottom=18,
-                              halign=Gtk.Align.CENTER)
-        self.hint.set_can_target(False)
-        overlay.add_overlay(self.hint)
-        GLib.timeout_add_seconds(12, lambda: (self.hint.set_visible(False), False)[1])
-
-        # Sidebar
-        sidebar = Adw.ToolbarView()
-        side_header = Adw.HeaderBar(show_start_title_buttons=False, show_end_title_buttons=False)
-        self.side_title = Adw.WindowTitle(title="FREQUENZ", subtitle="Pick a place on the globe")
-        side_header.set_title_widget(self.side_title)
-        sidebar.add_top_bar(side_header)
-        self.side_stack = Gtk.Stack(vexpand=True)
-        scroller = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
-        self.station_list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE, css_classes=["boxed-list"],
-                                        margin_top=12, margin_bottom=12, margin_start=12, margin_end=12)
-        self.station_list.connect("row-activated", self._on_row_activated)
-        scroller.set_child(self.station_list)
-        self.side_stack.add_named(scroller, "list")
-        self.empty_page = Adw.StatusPage(icon_name="audio-radio-symbolic", title="No stations here",
-                                         description="Pick a place on the globe, or search above.")
-        self.side_stack.add_named(self.empty_page, "empty")
-        sidebar.set_content(self.side_stack)
+        overlay.add_overlay(self.globe_note)
+        overlay.add_overlay(self._build_zoom_controls())
 
         self.split = Adw.OverlaySplitView()
         self.split.set_content(overlay)
-        self.split.set_sidebar(sidebar)
+        self.split.set_sidebar(self._build_panel())
         self.split.set_sidebar_position(Gtk.PackType.END)
-        self.split.set_min_sidebar_width(330)
-        self.split.set_max_sidebar_width(430)
-        self.split.set_sidebar_width_fraction(0.27)
+        self.split.set_min_sidebar_width(540)
+        self.split.set_max_sidebar_width(620)
+        self.split.set_sidebar_width_fraction(0.36)
+        self.split.set_hexpand(True)
         self.sidebar_button.bind_property(
             "active", self.split, "show-sidebar",
             GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.BIDIRECTIONAL,
         )
 
-        # Player bar
+        body = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        body.append(self.rail)
+        body.append(self.split)
+
         self.player_bar = self._build_player_bar()
+        bottom = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        bottom.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL, css_classes=["fq-hairline"]))
+        bottom.append(self.player_bar)
 
         self.toasts = Adw.ToastOverlay()
-        self.toasts.set_child(self.split)
+        self.toasts.set_child(body)
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(header)
-        toolbar.add_bottom_bar(self.player_bar)
+        toolbar.add_bottom_bar(bottom)
         toolbar.set_content(self.toasts)
         self.set_content(toolbar)
 
-    def _build_player_bar(self) -> Gtk.Box:
-        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14, css_classes=["rg-player"],
-                      margin_start=14, margin_end=14, margin_top=8, margin_bottom=10)
+    def _build_header(self) -> Adw.HeaderBar:
+        header = Adw.HeaderBar(css_classes=["fq-header"])
+        header.set_title_widget(Gtk.Box())  # no centred window title: the wordmark sits at the left
+        brand = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12, valign=Gtk.Align.CENTER,
+                        margin_start=10)
+        brand.append(Gtk.Label(label="//", css_classes=["fq-slash"]))
+        brand.append(Gtk.Label(label="FREQUENZ", css_classes=["fq-wordmark"]))
+        brand.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL, css_classes=["fq-rule"]))
+        brand.append(Gtk.Label(label="THE WORLD IS ON AIR", css_classes=["fq-tagline"]))
+        header.pack_start(brand)
 
-        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, hexpand=True, valign=Gtk.Align.CENTER)
+        switch = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2, valign=Gtk.Align.CENTER,
+                         margin_end=8, css_classes=["fq-theme-switch"])
+        self.theme_light = Gtk.ToggleButton(icon_name="fq-sun-symbolic", tooltip_text="Light theme",
+                                            css_classes=["flat", "fq-theme-option"])
+        self.theme_dark = Gtk.ToggleButton(icon_name="fq-moon-symbolic", tooltip_text="Dark theme",
+                                           css_classes=["flat", "fq-theme-option"])
+        self.theme_dark.set_group(self.theme_light)
+        for button in (self.theme_light, self.theme_dark):
+            button.connect("toggled", self._on_theme_toggled)
+            switch.append(button)
+        header.pack_end(switch)
+        self._sync_theme_toggles()
+        return header
+
+    def _build_rail(self) -> Rail:
+        rail = Rail()
+        self.globe_button = rail.add_toggle("globe", "fq-globe-symbolic", "Globe", active=True)
+        self.sidebar_button = rail.add_toggle("panel", "fq-radio-symbolic", "Show station panel", active=True,
+                                style="fq-rail-panel")
+        self.favorites_button = rail.add_toggle("favorites", "fq-heart-symbolic", "Favorites (F)")
+        self.recent_button = rail.add_toggle("recent", "fq-clock-symbolic", "Recently played")
+        self.favorites_button.set_group(self.globe_button)
+        self.recent_button.set_group(self.globe_button)
+        for button in (self.globe_button, self.favorites_button, self.recent_button):
+            button.connect("toggled", self._on_rail_toggled)
+        rail.add_spacer()
+        preferences = rail.add_button("settings", "fq-settings-symbolic", "Preferences")
+        preferences.connect("clicked", lambda *_: open_preferences(self))
+        return rail
+
+    def _build_panel(self) -> Gtk.Box:
+        panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16, css_classes=["fq-panel"],
+                        margin_top=24, margin_start=24, margin_end=24, margin_bottom=20)
+        self.search = Gtk.SearchEntry(placeholder_text="Search stations, places or countries",
+                                      css_classes=["fq-search"])
+        self.search.connect("search-changed", self._on_search_changed)
+        self.search.connect("activate", lambda *_: self._run_search(self.search.get_text()))
+        panel.append(self.search)
+
+        self.live_card = LiveCard()
+        self.fav_button = self.live_card.fav_button
+        self.fav_button.connect("toggled", self._on_fav_button_toggled)
+        panel.append(self.live_card)
+
+        self.side_title = SectionHeading()
+        panel.append(self.side_title)
+
+        self.side_stack = Gtk.Stack(vexpand=True)
+        scroller = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        self.station_list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE, css_classes=["fq-list"])
+        self.station_list.connect("row-activated", self._on_row_activated)
+        scroller.set_child(self.station_list)
+        self.side_stack.add_named(scroller, "list")
+        self.empty_page = Adw.StatusPage(icon_name="fq-radio-symbolic", title="No stations here",
+                                         description="Pick a place on the globe, or search above.")
+        self.side_stack.add_named(self.empty_page, "empty")
+        panel.append(self.side_stack)
+        self.side_title.set_title("Stations")
+        self.empty_page.set_title("Pick a place")
+        self.empty_page.set_description("Click a dot on the globe, search above, or press R for a random station.")
+        self.side_stack.set_visible_child_name("empty")
+        return panel
+
+    def _build_zoom_scale(self) -> Gtk.Scale:
+        scale = Gtk.Scale.new_with_range(Gtk.Orientation.VERTICAL, 0.0, 1.0, 0.01)
+        scale.set_draw_value(False)
+        scale.set_size_request(-1, 150)
+        scale.set_tooltip_text("Zoom: drag here, or scroll over the globe")
+        scale.add_css_class("fq-zoom-scale")
+        scale.connect("value-changed", self._on_zoom_slider)
+        return scale
+
+    def _build_zoom_controls(self) -> Gtk.Box:
+        controls = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["fq-zoom"],
+                           halign=Gtk.Align.START, valign=Gtk.Align.END, margin_start=24, margin_bottom=24)
+        zoom_in = Gtk.Button(child=icon("fq-plus-symbolic", 18), tooltip_text="Zoom in one level (+)",
+                             css_classes=["flat", "fq-zoom-button"])
+        zoom_in.connect("clicked", lambda *_: self.globe.zoom_step(1))
+        zoom_out = Gtk.Button(child=icon("fq-minus-symbolic", 18), tooltip_text="Zoom out one level (\u2212)",
+                              css_classes=["flat", "fq-zoom-button"])
+        zoom_out.connect("clicked", lambda *_: self.globe.zoom_step(-1))
+        controls.append(zoom_in)
+        controls.append(self.zoom_scale)
+        controls.append(zoom_out)
+        return controls
+
+    def _build_player_bar(self) -> Gtk.Box:
+        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, css_classes=["rg-player"])
+        bar.set_size_request(-1, PLAYER_HEIGHT)
+
+        info = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16, valign=Gtk.Align.CENTER,
+                       margin_start=24)
+        self.now_tile = Gtk.Label(label="•", css_classes=["fq-tile"], valign=Gtk.Align.CENTER)
+        self.now_tile.set_size_request(56, 56)
+        text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, valign=Gtk.Align.CENTER, hexpand=True)
         self.now_title = Gtk.Label(label="Pick a station", xalign=0, ellipsize=Pango.EllipsizeMode.END,
-                                   css_classes=["rg-title"], max_width_chars=60)
-        self.now_sub = Gtk.Label(label="Click a dot on the globe", xalign=0, ellipsize=Pango.EllipsizeMode.END,
-                                 css_classes=["dim-label", "caption"], max_width_chars=70)
-        info.append(self.now_title)
-        info.append(self.now_sub)
+                                   css_classes=["rg-title"], max_width_chars=40)
+        self.now_sub = Gtk.Label(label="Click a dot on the globe", xalign=0,
+                                 ellipsize=Pango.EllipsizeMode.END, css_classes=["fq-place"], hexpand=True)
+        text.append(self.now_title)
+        text.append(self.now_sub)
+        info.append(self.now_tile)
+        info.append(text)
+        info.set_hexpand(True)
         bar.append(info)
 
-        controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6, valign=Gtk.Align.CENTER)
-        self.prev_button = Gtk.Button(icon_name="media-skip-backward-symbolic", tooltip_text="Previous (←)",
-                                      css_classes=["flat", "circular"])
+        self.prev_button = Gtk.Button(icon_name="fq-skip-back-symbolic", tooltip_text="Previous (←)",
+                                      css_classes=["flat", "circular", "fq-transport"])
         self.prev_button.connect("clicked", lambda *_: self.play_relative(-1))
-        self.play_button = Gtk.Button(icon_name="media-playback-start-symbolic", tooltip_text="Play / pause (Space)",
-                                      css_classes=["circular", "suggested-action", "rg-play"])
+        self.play_button = Gtk.Button(icon_name="fq-play-symbolic", tooltip_text="Play / pause (Space)",
+                                      css_classes=["circular", "rg-play"])
         self.play_button.connect("clicked", lambda *_: self.toggle_play())
-        self.next_button = Gtk.Button(icon_name="media-skip-forward-symbolic", tooltip_text="Next (→)",
-                                      css_classes=["flat", "circular"])
+        self.next_button = Gtk.Button(icon_name="fq-skip-forward-symbolic", tooltip_text="Next (→)",
+                                      css_classes=["flat", "circular", "fq-transport"])
         self.next_button.connect("clicked", lambda *_: self.play_relative(1))
+        controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=22, valign=Gtk.Align.CENTER)
+        controls.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL, css_classes=["fq-rule"]))
         for button in (self.prev_button, self.play_button, self.next_button):
             controls.append(button)
+        controls.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL, css_classes=["fq-rule"]))
         bar.append(controls)
 
-        right = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8, valign=Gtk.Align.CENTER)
-        self.status_label = Gtk.Label(label="", css_classes=["caption", "rg-status"], width_chars=12, xalign=1)
-        right.append(self.status_label)
-        self.fav_button = Gtk.ToggleButton(icon_name="non-starred-symbolic", tooltip_text="Add to favorites (F)",
-                                           css_classes=["flat", "circular"])
-        self.fav_button.connect("toggled", self._on_fav_button_toggled)
-        right.append(self.fav_button)
-        right.append(Gtk.Image.new_from_icon_name("audio-volume-high-symbolic"))
+        right = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12, valign=Gtk.Align.CENTER,
+                        margin_end=28)
+        right.append(Gtk.Box(hexpand=True))
+        right.append(icon("fq-volume-2-symbolic", 20))
         self.volume = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0.0, 1.0, 0.02)
-        self.volume.set_size_request(120, -1)
+        self.volume.set_size_request(200, -1)
         self.volume.set_draw_value(False)
         self.volume.set_value(self.state.volume)
         self.volume.connect("value-changed", self._on_volume_changed)
         right.append(self.volume)
+        right.set_hexpand(True)
         bar.append(right)
         return bar
+
+    def _on_theme_toggled(self, button) -> None:
+        if button.get_active():
+            self.set_theme_name("light" if button is self.theme_light else "dark")
+
+    def _sync_theme_toggles(self) -> None:
+        for button, theme in ((self.theme_light, "light"), (self.theme_dark, "dark")):
+            button.handler_block_by_func(self._on_theme_toggled)
+            button.set_active(self.theme == theme)
+            button.handler_unblock_by_func(self._on_theme_toggled)
+
+    def set_theme_name(self, theme_name: str) -> None:
+        """Switch the design tokens (dark or light) and remember the choice."""
+        theme = normalize(theme_name)
+        if theme == self.theme:
+            return
+        self.theme = theme
+        for name in ("fq-dark", "fq-light"):
+            self.remove_css_class(name)
+        self.add_css_class(window_class(self.theme))
+        apply_scheme(self.theme)
+        self.globe.set_light_theme(self.theme == "light")
+        self.state.theme = self.theme
+        self.state.save()
+        self._sync_theme_toggles()
 
     # -- actions and keys --------------------------------------------------------
     def _install_actions(self) -> None:
@@ -282,6 +323,8 @@ class MainWindow(Adw.ApplicationWindow):
             ("sync", lambda *_: self.start_sync()),
             ("about", lambda *_: self._show_about()),
             ("shortcuts", lambda *_: self._show_shortcuts()),
+            ("theme", lambda *_: self.set_theme_name(other(self.theme))),
+            ("preferences", lambda *_: open_preferences(self)),
         ]:
             action = Gio.SimpleAction.new(name, None)
             action.connect("activate", callback)
@@ -318,6 +361,7 @@ class MainWindow(Adw.ApplicationWindow):
             "equal": lambda: self.globe.zoom_step(1),
             "minus": lambda: self.globe.zoom_step(-1),
             "0": self.globe.reset_view,
+            "a": lambda: self.set_auto_rotate(not self.globe.auto_rotate),
             "Escape": self._clear_selection,
         }
         action = actions.get(name)
@@ -355,28 +399,49 @@ class MainWindow(Adw.ApplicationWindow):
         self.side_stack.set_visible_child_name("list")
         self._highlight_playing_row()
 
+    def _show_now(self, row) -> None:
+        """Show the playing station in the bar, its monogram tile and the now-playing card."""
+        place = format_location(row["place_title"], row["country"]) or "Radio station"
+        self.now_tile.set_label(monogram(row["title"]))
+        self.now_title.set_label(row["title"])
+        self.now_sub.set_label(place)
+        self.live_card.set_station(row["title"], place)
+
     def _station_row(self, row) -> Gtk.ListBoxRow:
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10, margin_top=8, margin_bottom=8,
-                      margin_start=12, margin_end=8)
-        text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, hexpand=True, valign=Gtk.Align.CENTER)
+        station_id = row["id"]
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14, margin_top=12, margin_bottom=12,
+                       margin_start=6, margin_end=6)
+        play = Gtk.Button(icon_name="fq-play-symbolic", tooltip_text="Play", css_classes=["flat", "fq-row-play"],
+                          valign=Gtk.Align.CENTER)
+        play.connect("clicked", self._on_row_play, station_id)
+        line.append(play)
+        text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, hexpand=True, valign=Gtk.Align.CENTER)
         title = Gtk.Label(label=row["title"], xalign=0, ellipsize=Pango.EllipsizeMode.END,
-                          css_classes=["heading"], max_width_chars=44)
-        subtitle = Gtk.Label(label=_place_subtitle(row) or "Radio station", xalign=0,
-                             ellipsize=Pango.EllipsizeMode.END, css_classes=["dim-label", "caption"],
-                             max_width_chars=50)
+                          css_classes=["fq-row-title"], max_width_chars=44)
+        place = Gtk.Label(label=format_location(row["place_title"], row["country"]) or "RADIO STATION",
+                          xalign=0, ellipsize=Pango.EllipsizeMode.END, css_classes=["fq-row-place"],
+                          hexpand=True)
         text.append(title)
-        text.append(subtitle)
-        box.append(text)
-        fav = Gtk.ToggleButton(icon_name="starred-symbolic" if self.catalog.is_favorite(row["id"])
-                               else "non-starred-symbolic", css_classes=["flat", "circular"],
-                               valign=Gtk.Align.CENTER, tooltip_text="Favorite")
-        fav.set_active(self.catalog.is_favorite(row["id"]))
-        fav.connect("toggled", self._on_row_fav_toggled, row["id"])
-        box.append(fav)
-        list_row = Gtk.ListBoxRow(child=box, activatable=True)
-        list_row.station_id = row["id"]
+        text.append(place)
+        line.append(text)
+        is_favorite = self.catalog.is_favorite(station_id)
+        fav = Gtk.ToggleButton(icon_name="fq-heart-filled-symbolic" if is_favorite else "fq-heart-symbolic",
+                               tooltip_text="Favorite", css_classes=["flat", "fq-row-fav"],
+                               valign=Gtk.Align.CENTER)
+        fav.set_active(is_favorite)
+        fav.connect("toggled", self._on_row_fav_toggled, station_id)
+        line.append(fav)
+        content.append(line)
+        content.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL, css_classes=["fq-hairline"]))
+        list_row = Gtk.ListBoxRow(child=content, activatable=True)
+        list_row.station_id = station_id
         list_row.title_label = title
         return list_row
+
+    def _on_row_play(self, button, station_id: str) -> None:
+        ids = [r["id"] for r in self._sidebar_rows]
+        self.play_station(station_id, queue=ids)
 
     def _highlight_playing_row(self) -> None:
         current = self.current_row["id"] if self.current_row is not None else None
@@ -391,7 +456,7 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _on_row_fav_toggled(self, button, station_id: str) -> None:
         self.catalog.set_favorite(station_id, button.get_active())
-        button.set_icon_name("starred-symbolic" if button.get_active() else "non-starred-symbolic")
+        button.set_icon_name("fq-heart-filled-symbolic" if button.get_active() else "fq-heart-symbolic")
         if self.current_row is not None and self.current_row["id"] == station_id:
             self._sync_fav_button()
         if self.favorites_button.get_active():
@@ -408,16 +473,12 @@ class MainWindow(Adw.ApplicationWindow):
         if self.places is None:
             return
         place_id = self.places.ids[index]
-        place = self.catalog.place(place_id)
         rows = self.catalog.stations_in_place(place_id)
         title = self.places.titles[index]
-        country = self.places.countries[index]
         self.sidebar_mode = "place"
-        self.favorites_button.set_active(False)
-        self._show_rows(title, f"{country} · {len(rows)} stations" if rows else country, rows,
+        self._set_rail_view("globe")
+        self._show_rows(f"Stations in {title}", f"({len(rows)})", rows,
                         empty_text="This place has no stations in the catalog yet.")
-        if place is not None:
-            self.side_title.set_subtitle(f"{country} · {len(rows)} stations")
         if play and rows:
             ids = [r["id"] for r in rows]
             self.play_station(ids[0], queue=ids)
@@ -425,8 +486,16 @@ class MainWindow(Adw.ApplicationWindow):
     def _show_favorites(self) -> None:
         rows = self.catalog.favorites()
         self.sidebar_mode = "favorites"
+        self._set_rail_view("favorites")
         self._show_rows("Favorites", f"{len(rows)} saved", rows,
-                        empty_text="Press the star on any station to save it here.")
+                        empty_text="Press the heart on any station to save it here.")
+
+    def _show_recent(self) -> None:
+        rows = self.catalog.recent(limit=30)
+        self.sidebar_mode = "recent"
+        self._set_rail_view("recent")
+        self._show_rows("Recently played", f"{len(rows)} stations", rows,
+                        empty_text="Stations you play appear here.")
 
     def _run_search(self, text: str) -> None:
         text = text.strip()
@@ -434,7 +503,7 @@ class MainWindow(Adw.ApplicationWindow):
             return
         rows = self.catalog.search(text, limit=120)
         self.sidebar_mode = "search"
-        self.favorites_button.set_active(False)
+        self._set_rail_view("globe")
         self._show_rows(f"“{text}”", f"{len(rows)} stations found", rows,
                         empty_text="No station matches. Try a shorter word or a country name.")
 
@@ -450,19 +519,32 @@ class MainWindow(Adw.ApplicationWindow):
             self._run_search(text)
         return GLib.SOURCE_REMOVE
 
-    def _on_favorites_toggled(self, button) -> None:
-        if button.get_active():
+    def _on_rail_toggled(self, button) -> None:
+        """Rail views: globe (default), favorites and recent. Only the view that was switched on acts."""
+        if not button.get_active():
+            return
+        if button is self.favorites_button:
             self._show_favorites()
+        elif button is self.recent_button:
+            self._show_recent()
         else:
             self._clear_selection()
+
+    def _set_rail_view(self, view: str) -> None:
+        """Mark the rail item for the list on screen, without running its action."""
+        for key, button in (("globe", self.globe_button), ("favorites", self.favorites_button),
+                            ("recent", self.recent_button)):
+            button.handler_block_by_func(self._on_rail_toggled)
+            button.set_active(key == view)
+            button.handler_unblock_by_func(self._on_rail_toggled)
 
     def _clear_selection(self) -> None:
         self.selected_index = None
         self.globe.set_states(selected=None, playing=self.playing_index)
-        self.favorites_button.set_active(False)
+        self._set_rail_view("globe")
         self.sidebar_mode = "empty"
-        self.side_title.set_title("FREQUENZ")
-        self.side_title.set_subtitle("Pick a place on the globe")
+        self.side_title.set_title("Stations")
+        self.side_title.set_subtitle("")
         self.side_stack.set_visible_child_name("empty")
         self.empty_page.set_title("Pick a place")
         self.empty_page.set_description("Click a dot on the globe, search above, or press R for a random station.")
@@ -491,8 +573,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.catalog.record_play(station_id)
         self._start_resolve(station_id)
         self.state.last_station = station_id
-        self.now_title.set_label(row["title"])
-        self.now_sub.set_label(_place_subtitle(row) or "Radio station")
+        self._show_now(row)
         self.player_bar.add_css_class("rg-playing")
         self._sync_fav_button()
         self._update_place_marker(row)
@@ -545,9 +626,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.current_row = row
         self.queue = [last]
         self.queue_index = 0
-        self.now_title.set_label(row["title"])
-        self.now_sub.set_label(_place_subtitle(row) or "Radio station")
-        self.status_label.set_label("Ready")
+        self._show_now(row)
         self._sync_fav_button()
         self._update_place_marker(row)
         # Reopen the last place's station list on the right, without auto-playing,
@@ -613,25 +692,22 @@ class MainWindow(Adw.ApplicationWindow):
         active = self.catalog.is_favorite(self.current_row["id"])
         self.fav_button.handler_block_by_func(self._on_fav_button_toggled)
         self.fav_button.set_active(active)
-        self.fav_button.set_icon_name("starred-symbolic" if active else "non-starred-symbolic")
+        self.fav_button.set_icon_name("fq-heart-filled-symbolic" if active else "fq-heart-symbolic")
         self.fav_button.handler_unblock_by_func(self._on_fav_button_toggled)
 
     def _on_fav_button_toggled(self, button) -> None:
         if self.current_row is None:
             return
         self.catalog.set_favorite(self.current_row["id"], button.get_active())
-        button.set_icon_name("starred-symbolic" if button.get_active() else "non-starred-symbolic")
+        button.set_icon_name("fq-heart-filled-symbolic" if button.get_active() else "fq-heart-symbolic")
         if self.favorites_button.get_active():
             self._show_favorites()
 
     def _on_player_state(self, name: str) -> None:
-        self.status_label.set_label(STATUS_TEXT.get(name, ""))
-        self.status_label.remove_css_class("rg-status-live")
+        self.live_card.set_state(name)
         if name == "playing":
-            self.status_label.add_css_class("rg-status-live")
             self._auto_skips = 0
-        icon = "media-playback-pause-symbolic" if name in PLAY_ICONS else "media-playback-start-symbolic"
-        self.play_button.set_icon_name(icon)
+        self.play_button.set_icon_name("fq-pause-symbolic" if name in PAUSE_STATES else "fq-play-symbolic")
         if name == "error":
             reason = self.player.error or "unknown error"
             # A station that cannot start is skipped (a few in a row at most) so the list keeps playing.
@@ -665,15 +741,17 @@ class MainWindow(Adw.ApplicationWindow):
         self.open_place(index, play=True)
 
     def _on_zoom_changed(self, distance: float) -> None:
-        """Show the current zoom level and altitude; say so when the vector map is missing."""
+        """Keep the zoom slider in step with the globe, and say why the globe is missing when it is."""
+        self._zoom_guard = True
+        self.zoom_scale.set_value(geo.zoom_fraction(distance))
+        self._zoom_guard = False
+        note = ""
         if self.globe.gl_error:
-            self.zoom_label.set_label("3D globe unavailable: no usable OpenGL context")
-            return
-        if not self.globe.vector_map_ready:
-            self.zoom_label.set_label("Vector map not built: run 'frequenz build-globe'")
-            return
-        name = geo.zoom_level_name(distance) or "Zoom"
-        self.zoom_label.set_label(f"{name} · {geo.altitude_km(distance):,.0f} km altitude")
+            note = "3D globe unavailable: no usable OpenGL context"
+        elif not self.globe.vector_map_ready:
+            note = "Vector map not built: run 'frequenz build-globe'"
+        self.globe_note.set_label(note)
+        self.globe_note.set_visible(bool(note))
 
     def _on_globe_hover(self, index: int | None, x: float, y: float) -> None:
         if index is None or self.places is None:
@@ -688,9 +766,19 @@ class MainWindow(Adw.ApplicationWindow):
         self.hover_label.set_margin_top(int(max(0, y + 14)))
         self.hover_label.set_visible(True)
 
-    def _on_rotate_toggled(self, button) -> None:
-        self.globe.auto_rotate = button.get_active()
-        self.state.auto_rotate = button.get_active()
+    def set_globe_palette(self, name: str) -> None:
+        """Switch the globe colours (lime or classic) and remember the choice."""
+        self.globe.set_palette(name)
+        self.state.globe_palette = self.globe.palette_name
+        self.state.save()
+
+    def set_auto_rotate(self, active: bool) -> None:
+        self.globe.auto_rotate = active
+        self.state.auto_rotate = active
+
+    def _on_zoom_slider(self, scale) -> None:
+        if not self._zoom_guard:
+            self.globe.zoom_to(geo.zoom_distance(scale.get_value()))
 
     # -- catalog updates ---------------------------------------------------------
     def start_sync(self) -> None:
@@ -762,7 +850,7 @@ class MainWindow(Adw.ApplicationWindow):
             application_name=APP_NAME,
             application_icon=APP_ID,
             developer_name="Unofficial desktop client",
-            version="0.1.1",
+            version="0.2.0",
             website=BASE_URL,
             comments=("A native, local and ad-free radio globe for Linux. "
                       "Station data and streams belong to their owners; see the README."),
@@ -773,7 +861,7 @@ class MainWindow(Adw.ApplicationWindow):
         text = (
             "Space — play / pause\n← / → (or P / N) — previous / next station\n"
             "F — favorite the playing station\nR — random station\n"
-            "/ or Ctrl+F — search\n+ / − — zoom one level in or out, 0 — reset view\n"
+            "/ or Ctrl+F — search\n+ / − — zoom one level in or out, 0 — reset view, A — slow auto-rotate\n"
             "Click a dot — tune in; double-click — zoom to the place\n"
             "Escape — clear the list; Ctrl+Q — quit"
         )

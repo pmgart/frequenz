@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "frequenzradio"
-version = "0.1.1"
+version = "0.2.0"
 description = "FREQUENZ: native, local and ad-free radio globe for Linux (GTK 4, libadwaita, GStreamer), an unofficial client for radio.garden"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -27,7 +27,7 @@ frequenz = "frequenzradio.cli:main"
 packages = ["frequenzradio"]
 
 [tool.setuptools.package-data]
-frequenzradio = ["data/*", "data/icons/hicolor/scalable/apps/*"]
+frequenzradio = ["data/*", "data/icons/hicolor/scalable/apps/*", "data/icons/symbolic/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
