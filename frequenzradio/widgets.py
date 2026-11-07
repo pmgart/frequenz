@@ -96,7 +96,9 @@ class LiveCard(Gtk.Box):
         self.append(self.title)
 
         place_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        place_row.append(icon("fq-map-pin-symbolic", 14))
+        pin = icon("fq-map-pin-symbolic", 14)
+        pin.add_css_class("fq-card-icon")  # the card's muted colour, not the window text colour
+        place_row.append(pin)
         self.place = Gtk.Label(xalign=0, hexpand=True, ellipsize=Pango.EllipsizeMode.END,
                                css_classes=["fq-card-place"])
         place_row.append(self.place)
