@@ -850,7 +850,7 @@ class MainWindow(Adw.ApplicationWindow):
             application_name=APP_NAME,
             application_icon=APP_ID,
             developer_name="Unofficial desktop client",
-            version="0.2.0",
+            version="0.2.1",
             website=BASE_URL,
             comments=("A native, local and ad-free radio globe for Linux. "
                       "Station data and streams belong to their owners; see the README."),

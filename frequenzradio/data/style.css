@@ -207,6 +207,10 @@ separator.fq-hairline {
     letter-spacing: 0.1em;
 }
 
+.fq-card-icon {
+    color: var(--fq-card-muted);
+}
+
 .fq-card-action {
     color: var(--fq-card-text);
     background: transparent;

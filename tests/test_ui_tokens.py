@@ -98,3 +98,11 @@ def test_non_text_pairs_reach_3_to_1_except_the_known_exceptions(theme, fg, bg):
         assert ratio < 3.0, "this exception passes now: remove it from KNOWN_EXCEPTIONS"
     else:
         assert ratio >= 3.0, f"{theme}: {fg} on {bg} is {ratio:.2f}:1"
+
+
+def test_the_card_place_icon_uses_the_card_muted_colour():
+    # The pin on the now-playing card must not take the window text colour: that colour is light on
+    # the white card of the dark theme and dark on the black card of the light theme, so the pin vanishes.
+    rule = re.search(r"^\.fq-card-icon\s*\{(.*?)\}", _css(), re.S | re.M)
+    assert rule, ".fq-card-icon is missing from style.css"
+    assert "var(--fq-card-muted)" in rule.group(1)
