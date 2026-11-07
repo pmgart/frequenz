@@ -1,3 +1,11 @@
+frequenz (0.2.0) unstable; urgency=medium
+
+  * New interface from the approved design: header with the light and dark switch, left rail,
+    now-playing card, station list and player bar. Classic globe colours are an option in Preferences.
+  * Depends on fonts-inter for the Inter typeface.
+
+ -- Pablo Magana <pablo@laps.se>  Sat, 07 Nov 2026 12:00:00 +0100
+
 frequenz (0.1.1) unstable; urgency=medium
 
   * Same program source as the Fedora package: version 0.1.1, copyright holder LAPS AB.

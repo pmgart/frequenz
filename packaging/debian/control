@@ -37,7 +37,8 @@ Depends: ${misc:Depends},
  gstreamer1.0-plugins-ugly,
  python3-numpy,
  python3-opengl,
- hicolor-icon-theme
+ hicolor-icon-theme,
+ fonts-inter
 Recommends: python3-shapely
 Description: native, local and ad-free radio globe (unofficial radio.garden client)
  FREQUENZ shows the public place and station list of radio.garden on an
