@@ -1,3 +1,9 @@
+frequenz (0.2.1) unstable; urgency=medium
+
+  * Fix: the map-pin icon on the now-playing card is visible.
+
+ -- Pablo Magana <pablo@laps.se>  Sat, 07 Nov 2026 13:00:00 +0100
+
 frequenz (0.2.0) unstable; urgency=medium
 
   * New interface from the approved design: header with the light and dark switch, left rail,
