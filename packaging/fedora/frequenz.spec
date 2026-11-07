@@ -7,7 +7,7 @@
 %global srcname frequenzradio
 
 Name:           frequenz
-Version:        0.1.1
+Version:        0.2.0
 Release:        1%{?dist}
 Summary:        Native, local and ad-free radio globe for Linux
 License:        GPL-3.0-or-later
@@ -34,6 +34,7 @@ Requires:       gstreamer1-plugins-good
 Requires:       gstreamer1-plugins-bad-free
 Requires:       gstreamer1-libav
 Requires:       hicolor-icon-theme
+Requires:       rsms-inter-fonts
 Recommends:     python3-shapely
 
 %description
@@ -70,6 +71,11 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/se.laps.Frequenz.desk
 %{_datadir}/icons/hicolor/scalable/apps/se.laps.Frequenz.svg
 
 %changelog
+* Sat Nov 07 2026 Pablo Magana <pablo@laps.se> - 0.2.0-1
+- New interface from the approved design: header with the light and dark switch, left rail,
+  now-playing card, station list and player bar. Classic globe colours are an option in Preferences.
+- Requires rsms-inter-fonts for the Inter typeface.
+
 * Fri Nov 06 2026 Pablo Magana <pablo@laps.se> - 0.1.1-1
 - Same program source as the Ubuntu package: version 0.1.1, copyright holder LAPS AB.
 
