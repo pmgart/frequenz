@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -67,6 +68,8 @@ SURFACE_DRAWS = (
 LINE_DRAWS = (("borders", "border"), ("rivers", "river"))
 
 SHADER_CONSTANTS = {"__INV_POLE_SQ__": f"{geo.INV_POLE_SCALE_SQ:.9f}"}
+# GLSL 330 and GLES use explicit attribute locations; the GLSL 150 variant binds them by name instead.
+_LAYOUT_LOCATION = re.compile(r"layout\(location = \d+\) ")
 
 SURFACE_VS = """
 #version 330 core
@@ -308,22 +311,45 @@ class _Mesh:
     indexed: bool
 
 
-def _shader_source(source: str, es: bool) -> str:
-    """Return the desktop (GLSL 330) or GLES (GLSL ES 300) variant of a shader."""
+def _shader_source(source: str, es: bool, glsl: int = 330) -> str:
+    """Return the GLES (GLSL ES 300), desktop GLSL 330 or desktop GLSL 150 variant of a shader."""
     for token, value in SHADER_CONSTANTS.items():
         source = source.replace(token, value)
     lines = source.strip().split("\n")
     body = "\n".join(lines[1:])  # drop the '#version' line
     if es:
         return "#version 300 es\nprecision highp float;\nprecision highp int;\n" + body
+    if glsl == 150:  # OpenGL 3.2 core: the profile GTK uses on macOS
+        return "#version 150 core\n" + _LAYOUT_LOCATION.sub("", body)
     return "#version 330 core\n" + body
 
 
-def _compile(vs: str, fs: str, es: bool) -> int:
-    return gl_shaders.compileProgram(
-        gl_shaders.compileShader(_shader_source(vs, es), gl.GL_VERTEX_SHADER),
-        gl_shaders.compileShader(_shader_source(fs, es), gl.GL_FRAGMENT_SHADER),
-    )
+def _compile(vs: str, fs: str, es: bool, glsl: int = 330, attributes: tuple = ()) -> int:
+    """Compile and link a program. Attributes are bound by name, so the GLSL 150 variant (which has no
+    layout(location)) gets the same attribute indices as the GLSL 330 and GLES variants."""
+    shaders = [
+        gl_shaders.compileShader(_shader_source(vs, es, glsl), gl.GL_VERTEX_SHADER),
+        gl_shaders.compileShader(_shader_source(fs, es, glsl), gl.GL_FRAGMENT_SHADER),
+    ]
+    program = gl.glCreateProgram()
+    for shader in shaders:
+        gl.glAttachShader(program, shader)
+    for index, name in attributes:
+        gl.glBindAttribLocation(program, index, name)
+    gl.glLinkProgram(program)
+    if not gl.glGetProgramiv(program, gl.GL_LINK_STATUS):
+        log_text = gl.glGetProgramInfoLog(program)
+        if isinstance(log_text, bytes):
+            log_text = log_text.decode(errors="replace")
+        raise RuntimeError(f"shader link failed: {log_text.strip()}")
+    for shader in shaders:
+        gl.glDeleteShader(shader)
+    return program
+
+
+def _gl_int(pname: int) -> int:
+    """Read one integer GL state value. PyOpenGL returns a 1-element array or a scalar, depending on the query."""
+    return int(np.ravel(gl.glGetIntegerv(pname))[0])
 
 
 def _uniform_locations(program: int, names: tuple[str, ...]) -> dict[str, int]:
@@ -348,7 +374,7 @@ class GlobeView(Gtk.GLArea):
         super().__init__()
         self.set_has_depth_buffer(False)  # painter's order: no depth test is needed
         self.set_auto_render(False)
-        self.set_required_version(*desktop_gl_version())  # GLES 3.0 on Linux; desktop 4.1 core on macOS
+        self.set_required_version(*desktop_gl_version())  # GLES 3.0 on Linux; desktop 3.2 core on macOS
         self.set_hexpand(True)
         self.set_vexpand(True)
         self.set_focusable(False)
@@ -630,14 +656,21 @@ class GlobeView(Gtk.GLArea):
     def _setup_gl(self, area) -> None:
         es = bool(area.get_context().get_use_es())
         self._es = es
+        # Desktop GL: GLSL 330 for a 3.3 or newer context, otherwise GLSL 150 (GTK's 3.2 core on macOS).
+        glsl = 330
+        if not es:
+            major, minor = _gl_int(gl.GL_MAJOR_VERSION), _gl_int(gl.GL_MINOR_VERSION)
+            glsl = 330 if (major, minor) >= (3, 3) else 150
         gl.glDisable(gl.GL_DEPTH_TEST)
         if not es:  # GLES always uses gl_PointSize; the enum does not exist there
             gl.glEnable(gl.GL_PROGRAM_POINT_SIZE)
 
-        self._surface_program = _compile(SURFACE_VS, SURFACE_FS, es)
-        self._line_program = _compile(LINE_VS, LINE_FS, es)
-        self._halo_program = _compile(HALO_VS, HALO_FS, es)
-        self._points_program = _compile(POINTS_VS, POINTS_FS, es)
+        pos = ((0, "a_pos"),)
+        self._surface_program = _compile(SURFACE_VS, SURFACE_FS, es, glsl, pos)
+        self._line_program = _compile(LINE_VS, LINE_FS, es, glsl, pos)
+        self._halo_program = _compile(HALO_VS, HALO_FS, es, glsl)
+        self._points_program = _compile(POINTS_VS, POINTS_FS, es, glsl,
+                                        ((0, "a_pos"), (1, "a_scale"), (2, "a_state")))
         self._uniforms = {
             "surface": _uniform_locations(self._surface_program,
                                           ("u_mvp", "u_color", "u_gloss", "u_mottle", "u_sun", "u_eye", "u_ambient", "u_rim")),

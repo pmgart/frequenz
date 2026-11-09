@@ -38,7 +38,7 @@
 20. Skill `laps-frequenz-release`: Mac steps and the separate-track rule (Q3). No consumers.
 
 ### Phases and gates
-- **Phase 0, feasibility (throwaway, no product commits).** Run the app from source on the MacBook Pro first; the GitHub macOS job is optional. Gate: GL_VERSION ≥ 3.3 core and the GLSL 330 shader compiles (`tests/globe_gl_probe.py`); GL_POINT_SIZE_RANGE covers the marker size; `osxaudiosink` and the decoders are present; 20 s of playback with no bus error; Inter resolved by Pango; header bar placement; minimum macOS from the Homebrew bottles. Output: go/no-go and the bundling choice. No-go → stop and report.
+- **Phase 0, feasibility (throwaway, no product commits).** Run the app from source on the MacBook Pro first; the GitHub macOS job is optional. Gate: GL_VERSION ≥ 3.2 core and the shaders compile (GLSL 150 on macOS; `tests/globe_gl_probe.py`); GL_POINT_SIZE_RANGE covers the marker size; `osxaudiosink` and the decoders are present; 20 s of playback with no bus error; Inter resolved by Pango; header bar placement; minimum macOS from the Homebrew bottles. Output: go/no-go and the bundling choice. No-go → stop and report.
 - **Phase 1, shared code** (items 1–12) on `macos-app`.
 - **Phase 2, packaging** (items 13–19) on `macos-app`.
 - **Phase 3, real-Mac verification** on the MacBook Pro (see Assumption 4).
@@ -79,7 +79,7 @@ Leftover checks: `grep -rn "frequenz-linux" .` → no matches. `grep -rn "for Li
 - The README gets a status note only. There is no `.dmg` to install from yet.
 - Search and quit accept Command on macOS. This was added after the shortcut list showed ⌘ while the key handler only read Control.
 - `scripts/macos-setup.sh` and the handoff are untested on macOS until the first run.
-- First Mac run (2026-11-09): the window, search panel and player drew correctly in light and dark themes. The globe showed "3D globe unavailable: no usable OpenGL context" with the 3.3 request, so the macOS request is now 4.1 core. The missing stations came from the 40-place sync; the setup script now syncs the full catalog unless `FREQUENZ_SAMPLE=1` is set.
+- First Mac run (2026-11-09): the window, search panel and player drew correctly in light and dark themes. The globe showed "3D globe unavailable: no usable OpenGL context" with the 3.3 request, so the macOS request is now 3.2 core with GLSL 150 shaders. The missing stations came from the 40-place sync; the setup script now syncs the full catalog unless `FREQUENZ_SAMPLE=1` is set.
 
 ## Assumptions
 1. Target: Apple Silicon, macOS 26 Tahoe or newer (answered 2026-11-07). Intel Macs are out: Tahoe is the last macOS release for them.
@@ -87,7 +87,7 @@ Leftover checks: `grep -rn "frequenz-linux" .` → no matches. `grep -rn "for Li
 3. Separate Mac track until it passes on a real Mac (answered). Fedora and Ubuntu keep shipping together under the standing rule.
 4. A MacBook Pro with Apple Silicon (M2 Pro) is available from 2026-11-09 and serves Phase 0 and Phase 3. At planning time there was no Mac, so the Mac build was planned as a CI artefact with no real-hardware GUI check.
 5. GitHub's `macos-26` arm64 runner is generally available (GitHub changelog, 2026-02-26). Reports say private-repo macOS minutes count about 10× Linux minutes (third-party; check billing). CI may lack a GL 3.3 core context; if so, the GL gate needs a real Mac.
-6. GDK tries an OpenGL 3.2 core context by default (GTK docs), but the shader is GLSL 330 core, so the Mac path first requested 3.3, which failed on the first run; it now requests 4.1 core. The desktop GLSL 330 path has not run on real hardware in the test records: the Ubuntu NVIDIA runs used OpenGL ES 3.2 through EGL.
+6. GDK tries an OpenGL 3.2 core context by default (GTK docs), but the shader is GLSL 330 core, so the Mac path first requested 3.3 and then 4.1; both failed on the first runs (a generic message, then "invalid share context"). It now requests 3.2 core, the profile GTK uses, with GLSL 150 shaders. The desktop GLSL 330 path has not run on real hardware in the test records: the Ubuntu NVIDIA runs used OpenGL ES 3.2 through EGL.
 7. Homebrew provides gtk4, libadwaita and gstreamer, and a public project builds GTK and libadwaita on macOS. libadwaita is mainly tested on Linux (a 2024 article), so Phase 0 decides. Homebrew bottle platforms are unverified.
 8. The bundling method (relocated dylibs, relocatable Python, PyGObject against the bundled GTK) is unverified and chosen in Phase 0. The Homebrew gstreamer formula bundles all plugin modules (good, bad, ugly, libav); the element list in the test plan is unverified.
 9. The GTK modifier mapping for `<Meta>` and `<Primary>` on macOS is unverified. Both Command and Control are accepted, so the shortcuts work either way.

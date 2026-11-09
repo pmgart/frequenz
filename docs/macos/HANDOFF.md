@@ -48,7 +48,7 @@ To use a complete catalog file from another machine instead, quit FREQUENZ, move
 
 ## Known gaps
 - Inter, the UI font, is not installed by the script. Without it the UI falls back to the system font. Install Inter from https://rsms.me/inter/ for the intended look.
-- The first run with a 3.3 request showed "3D globe unavailable: no usable OpenGL context". The code now asks for 4.1 core. If the globe still does not start, the note in the globe area gives the reason, and the probe prints it too.
+- Globe history on the MacBook: a 3.3 request showed the fixed text "3D globe unavailable: no usable OpenGL context"; a 4.1 request then showed the real error, "invalid share context". The code now asks for 3.2 core with GLSL 150 shaders, the profile GTK uses. If the globe still does not start, the note in the globe area gives the reason, and the probe prints it too.
 - The app runs from source only: no app bundle and no signature.
 - Quit is ⌘Q; Control-Q works too. Search is `/`, ⌘F or Control-F.
 

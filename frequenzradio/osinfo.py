@@ -10,11 +10,13 @@ def is_macos(platform: str | None = None) -> bool:
 
 
 def desktop_gl_version(platform: str | None = None) -> tuple[int, int]:
-    """OpenGL version to request on the desktop path. GTK's default is 3.2 core, which cannot compile
-    the GLSL 330 shaders. The first Mac run with a 3.3 request showed "no usable OpenGL context", so
-    macOS asks for 4.1 core, the newest profile it offers; the 330 shaders run in it. On Linux the
-    request stays 3.0, which is valid for GLES 3.0 as well."""
-    return (4, 1) if is_macos(platform) else (3, 0)
+    """OpenGL version to request on the desktop path.
+
+    macOS: 3.2 core, the profile GTK's docs name as its default. The first Mac runs showed a fixed
+    "no usable OpenGL context" note with a 3.3 request, and macOS's "invalid share context" with a 4.1
+    request, so the globe uses GLSL 150 shaders there. Linux: 3.0, which is also valid for GLES 3.0.
+    """
+    return (3, 2) if is_macos(platform) else (3, 0)
 
 
 def primary_label(platform: str | None = None) -> str:
