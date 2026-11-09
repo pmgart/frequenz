@@ -197,10 +197,9 @@ reuses the downloaded files.
 ## macOS
 
 A native Mac app for Apple Silicon Macs running macOS 27 or newer. The same GTK 4
-code runs on both platforms; the Mac work lives on the `macos-app` branch.
-
-Install `FREQUENZ-<version>-arm64.dmg` from the releases, open it and drag
-FREQUENZ to Applications. The build is ad-hoc signed but not notarised, so the
+code runs on both platforms; the Mac work lives on the `macos-app` branch. There
+is no public Mac release yet: build the unsigned `.dmg` yourself (below) and
+drag FREQUENZ to Applications. Because it is ad-hoc signed and not notarised, the
 first launch needs System Settings › Privacy & Security › Open Anyway. On a Mac
 the data folder is `~/Library/Application Support/frequenz` and the shortcuts
 show ⌘ instead of Ctrl. The first launch downloads the station catalog and shows
