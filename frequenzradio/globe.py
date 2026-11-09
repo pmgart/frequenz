@@ -348,7 +348,7 @@ class GlobeView(Gtk.GLArea):
         super().__init__()
         self.set_has_depth_buffer(False)  # painter's order: no depth test is needed
         self.set_auto_render(False)
-        self.set_required_version(*desktop_gl_version())  # GLES 3.0 on Linux; desktop 3.3 core on macOS
+        self.set_required_version(*desktop_gl_version())  # GLES 3.0 on Linux; desktop 4.1 core on macOS
         self.set_hexpand(True)
         self.set_vexpand(True)
         self.set_focusable(False)

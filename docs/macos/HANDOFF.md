@@ -33,6 +33,12 @@ Then check the OpenGL path and start the app:
 
 If a step in the script fails, run the same commands by hand, in the order the script lists them.
 
+## Stations
+
+The script syncs the full catalog, which takes a long time. Control-C is safe, and running the script again continues where it stopped. `FREQUENZ_SAMPLE=1 scripts/macos-setup.sh` syncs only 40 places, which is why search finds few stations: use it only as a quick look.
+
+To use a complete catalog file from another machine instead, quit FREQUENZ, move the existing `catalog.sqlite` in `~/Library/Application Support/frequenz` aside, delete any `catalog.sqlite-wal` and `catalog.sqlite-shm` next to it, copy the file in as `catalog.sqlite`, and check it with `.venv/bin/frequenz stats`.
+
 ## What to report back
 - `sw_vers -productVersion` and `uname -m`
 - the full output of `.venv/bin/frequenz doctor`
@@ -42,7 +48,7 @@ If a step in the script fails, run the same commands by hand, in the order the s
 
 ## Known gaps
 - Inter, the UI font, is not installed by the script. Without it the UI falls back to the system font. Install Inter from https://rsms.me/inter/ for the intended look.
-- The OpenGL 3.3 path has never run on real hardware. The probe answers that.
+- The first run with a 3.3 request showed "3D globe unavailable: no usable OpenGL context". The code now asks for 4.1 core. If the globe still does not start, the note in the globe area gives the reason, and the probe prints it too.
 - The app runs from source only: no app bundle and no signature.
 - Quit is ⌘Q; Control-Q works too. Search is `/`, ⌘F or Control-F.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Set up FREQUENZ on a Mac from this checkout: Homebrew libraries, a Python environment, the app,
-# a doctor check, the globe map and a 40-place station sample. Run it from the repository root
+# a doctor check, the globe map and the station catalog. Run it from the repository root
 # (the script changes to it). It stops at the first failed step.
 # Written without a macOS test run: see docs/macos/HANDOFF.md.
 set -euo pipefail
@@ -36,8 +36,15 @@ echo "== Doctor (warnings about the catalog and the map are expected here)"
 echo "== Globe map (about 31 MB download)"
 .venv/bin/frequenz build-globe
 
-echo "== Station sample (first 40 places)"
-.venv/bin/frequenz sync --limit 40
+echo "== Station catalog"
+if [[ "${FREQUENZ_SAMPLE:-0}" == "1" ]]; then
+  echo "Sample only (first 40 places). Run again without FREQUENZ_SAMPLE=1 for the full catalog."
+  .venv/bin/frequenz sync --limit 40
+else
+  echo "Full catalog: about 12,900 places and 38,500 stations. This takes a long time."
+  echo "Control-C is safe. Running the sync again continues where it stopped."
+  .venv/bin/frequenz sync
+fi
 
 echo
 echo "Done. Next:"

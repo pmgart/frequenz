@@ -11,9 +11,10 @@ def is_macos(platform: str | None = None) -> bool:
 
 def desktop_gl_version(platform: str | None = None) -> tuple[int, int]:
     """OpenGL version to request on the desktop path. GTK's default is 3.2 core, which cannot compile
-    the GLSL 330 shaders; macOS offers a 4.1 core profile, so 3.3 is requested there. On Linux the
+    the GLSL 330 shaders. The first Mac run with a 3.3 request showed "no usable OpenGL context", so
+    macOS asks for 4.1 core, the newest profile it offers; the 330 shaders run in it. On Linux the
     request stays 3.0, which is valid for GLES 3.0 as well."""
-    return (3, 3) if is_macos(platform) else (3, 0)
+    return (4, 1) if is_macos(platform) else (3, 0)
 
 
 def primary_label(platform: str | None = None) -> str:

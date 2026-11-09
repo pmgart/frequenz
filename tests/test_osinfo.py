@@ -9,9 +9,9 @@ def test_linux_keeps_the_gles_compatible_request_and_ctrl():
     assert primary_label("linux") == "Ctrl"
 
 
-def test_macos_requests_3_3_core_and_the_command_key():
+def test_macos_requests_4_1_core_and_the_command_key():
     assert is_macos("darwin")
-    assert desktop_gl_version("darwin") == (3, 3)
+    assert desktop_gl_version("darwin") == (4, 1)
     assert primary_label("darwin") == "⌘"
 
 

@@ -756,7 +756,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._zoom_guard = False
         note = ""
         if self.globe.gl_error:
-            note = "3D globe unavailable: no usable OpenGL context"
+            note = f"3D globe unavailable: {str(self.globe.gl_error)[:160]}"
         elif not self.globe.vector_map_ready:
             note = "Vector map not built: run 'frequenz build-globe'"
         self.globe_note.set_label(note)
