@@ -1,6 +1,6 @@
 # FREQUENZ for macOS: plan
 
-> Approved 2026-11-07 (rev 1). Status 2026-11-09: Phase 1 is on branch `macos-app`. Phase 0 runs on the MacBook Pro (M2 Pro) first; a GitHub macOS job is optional. Current state and setup: `HANDOFF.md`.
+> Approved 2026-11-07 (rev 1). Status 2026-11-09: Phase 0 passed on the MacBook Pro (M2 Pro); Phase 1 and Phase 2 are on branch `macos-app`; the bundle and dmg build and run, the clean-account test is open. A GitHub macOS job is optional. Current state and setup: `HANDOFF.md`.
 
 ## Summary
 - Build a native Mac app, `FREQUENZ.app`, from the same GTK 4, libadwaita and GStreamer code as Linux. One source tree. The Mac work lives on the `macos-app` branch.
@@ -25,14 +25,14 @@
 11. New tests: `tests/test_osinfo.py`, `tests/test_paths_macos.py`, `tests/test_doctor_display.py`, `tests/test_bundle_seed.py`.
 12. `tests/globe_gl_probe.py` (new, manual): prints GL_VERSION, GL_SHADING_LANGUAGE_VERSION, GL_RENDERER, GL_POINT_SIZE_RANGE and render timing. It writes no snapshot; use the app's `FREQUENZ_SNAPSHOT` hook for that.
 
-### macOS packaging (Phase 2; not started)
+### macOS packaging (Phase 2; done 2026-11-09, see HANDOFF.md)
 13. `packaging/macos/build-app.sh` (new): builds `dist/FREQUENZ.app` with a relocatable Python (Phase 0 choice); PyGObject built against the bundled GTK; dylibs relocated into `Contents/Frameworks` (dylibbundler or equivalent); GStreamer plugins and `gst-plugin-scanner`; GdkPixbuf loaders; GSettings schemas; Adwaita icons; Inter (OFL); the pre-built globe map (`frequenz build-globe` in CI); `.icns` from the app icon (`iconutil`); licence texts; ad-hoc signature (`codesign --force --deep -s -`).
-14. `packaging/macos/Info.plist.in` (new): `CFBundleIdentifier` `se.laps.Frequenz`; version taken from pyproject.toml; `LSMinimumSystemVersion` 26.0; `NSHighResolutionCapable` true; `CFBundleIconFile`.
-15. `packaging/macos/launcher.sh` (new; installed as `Contents/MacOS/frequenz`): sets `GST_PLUGIN_SYSTEM_PATH_1_0`, `GST_PLUGIN_SCANNER`, `GST_REGISTRY_1_0` (under `~/Library/Caches/frequenz`), `GDK_PIXBUF_MODULE_FILE`, `XDG_DATA_DIRS`, `FREQUENZ_BUNDLE_RESOURCES` and, if Pango needs it, `FONTCONFIG_FILE`; then `exec python -m frequenzradio gui "$@"`.
+14. `packaging/macos/Info.plist.in` (new): `CFBundleIdentifier` `se.laps.Frequenz`; version taken from pyproject.toml; `LSMinimumSystemVersion` 27.0; `NSHighResolutionCapable` true; `CFBundleIconFile`.
+15. `packaging/macos/launcher.c` (new; installed as `Contents/MacOS/frequenz`): a small Mach-O launcher that derives every path from the bundle, sets `PYTHONHOME`, `GI_TYPELIB_PATH`, `GSETTINGS_SCHEMA_DIR`, `GDK_PIXBUF_MODULEDIR`, the `GST_*` paths, `XDG_DATA_DIRS`, `DYLD_FALLBACK_LIBRARY_PATH` and `FREQUENZ_BUNDLE_RESOURCES`, then execs `frequenz-bin -m frequenzradio "$@"`. A shell script cannot be the main executable of a bundle whose Python sits several directories down without breaking `@executable_path`. `fix-rpaths.py` and `check-dylibs.py` are helpers.
 16. `packaging/macos/make-dmg.sh` (new): `hdiutil create -format UDZO` → `FREQUENZ-<ver>-arm64.dmg`; `shasum -a 256` → `SHA256SUMS`.
 17. `packaging/macos/verify-bundle.sh` (new): checks for Homebrew load paths, the signature, `frequenz doctor` inside the bundle, and a snapshot run.
 18. `packaging/macos/licenses/` (new): GPL-3.0 and LGPL texts (GTK, libadwaita, GStreamer), Python licence, Inter OFL, Lucide ISC, Natural Earth note.
-19. `.github/workflows/macos.yml` (new): `workflow_dispatch`; runner `macos-26` (arm64); Homebrew: gtk4, libadwaita, gstreamer, pygobject3, dylibbundler, librsvg (formula names to confirm); venv; pytest; `frequenz build-globe`; `build-app.sh`; `verify-bundle.sh`; `make-dmg.sh`; artifact upload. No signing secrets in v1.
+19. `.github/workflows/macos.yml` (not done; optional): `workflow_dispatch`; runner `macos-26` (arm64); Homebrew: gtk4, libadwaita, gstreamer, pygobject3, dylibbundler, librsvg (formula names to confirm); venv; pytest; `frequenz build-globe`; `build-app.sh`; `verify-bundle.sh`; `make-dmg.sh`; artifact upload. No signing secrets in v1.
 
 ### Release
 20. Skill `laps-frequenz-release`: Mac steps and the separate-track rule (Q3). No consumers.
@@ -40,7 +40,7 @@
 ### Phases and gates
 - **Phase 0, feasibility (throwaway, no product commits).** Run the app from source on the MacBook Pro first; the GitHub macOS job is optional. Gate: GL_VERSION ≥ 3.2 core and the shaders compile (GLSL 150 on macOS; `tests/globe_gl_probe.py`); GL_POINT_SIZE_RANGE covers the marker size; `osxaudiosink` and the decoders are present; 20 s of playback with no bus error; Inter resolved by Pango; header bar placement; minimum macOS from the Homebrew bottles. Output: go/no-go and the bundling choice. No-go → stop and report.
 - **Phase 1, shared code** (items 1–12) on `macos-app`.
-- **Phase 2, packaging** (items 13–19) on `macos-app`.
+- **Phase 2, packaging** (items 13–19) on `macos-app`. Done: `build-app.sh` makes a self-contained 455 MB bundle; `verify-bundle.sh` and `make-dmg.sh` complete the pipeline.
 - **Phase 3, real-Mac verification** on the MacBook Pro (see Assumption 4).
 - **Phase 4, release** as a separate Mac track (item 20).
 
@@ -80,6 +80,14 @@ Leftover checks: `grep -rn "frequenz-linux" .` → no matches. `grep -rn "for Li
 - Search and quit accept Command on macOS. This was added after the shortcut list showed ⌘ while the key handler only read Control.
 - `scripts/macos-setup.sh` and the handoff are untested on macOS until the first run.
 - First Mac run (2026-11-09): the window, search panel and player drew correctly in light and dark themes. The globe showed "3D globe unavailable: no usable OpenGL context" with the 3.3 request, so the macOS request is now 3.2 core with GLSL 150 shaders. The missing stations came from the 40-place sync; the setup script now syncs the full catalog unless `FREQUENZ_SAMPLE=1` is set.
+
+## Packaging notes (2026-11-09)
+- The bundle carries Python 3.15, GTK 4, libadwaita, GStreamer, the typelibs, the GSettings schemas, Adwaita icons, Inter and the globe map. Every dylib is rewritten to `@executable_path/../Frameworks`.
+- A typelib loads its library by bare name, so `build-app.sh` copies each typelib's library explicitly; the link-time walk does not see it.
+- dylibbundler rewrites all rpaths to the same prefix and leaves duplicates; dyld then refuses to load those plugins. `fix-rpaths.py` removes the duplicates (118 in the 0.2.1 build).
+- Homebrew paths the bundle still carried: `Python` referenced by `frequenz-bin` (fixed by rewriting both the `opt` and `Cellar` spellings), `libgstpython` (dropped), and the `lib-dynload`/`gi` override modules (now bundled).
+- The Homebrew bottles are built with `minos 27.0`; the bundle therefore requires macOS 27, not 26. Supporting 26 means older bottles or source builds.
+- First-run catalog: the app already had an empty-catalog sync; it now shows a progress bar and a place/station count on the status page, and a failure message instead of a silent toast.
 
 ## Assumptions
 1. Target: Apple Silicon, macOS 26 Tahoe or newer (answered 2026-11-07). Intel Macs are out: Tahoe is the last macOS release for them.

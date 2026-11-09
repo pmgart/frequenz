@@ -220,6 +220,14 @@ class MainWindow(Adw.ApplicationWindow):
         self.side_stack.add_named(scroller, "list")
         self.empty_page = Adw.StatusPage(icon_name="fq-radio-symbolic", title="No stations here",
                                          description="Pick a place on the globe, or search above.")
+        self.sync_progress = Gtk.ProgressBar(show_text=False, css_classes=["fq-sync-progress"])
+        self.sync_status = Gtk.Label(css_classes=["fq-sync-status"], wrap=True,
+                                     justify=Gtk.Justification.CENTER)
+        self.sync_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12,
+                                halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER, visible=False)
+        self.sync_box.append(self.sync_progress)
+        self.sync_box.append(self.sync_status)
+        self.empty_page.set_child(self.sync_box)
         self.side_stack.add_named(self.empty_page, "empty")
         panel.append(self.side_stack)
         self.side_title.set_title("Stations")
@@ -566,6 +574,9 @@ class MainWindow(Adw.ApplicationWindow):
             "FREQUENZ stores every station locally so the globe and search are instant. "
             "This one-time download takes about 15–20 minutes."
         )
+        self.sync_progress.set_fraction(0.0)
+        self.sync_status.set_label("Starting…")
+        self.sync_box.set_visible(True)
         self.side_stack.set_visible_child_name("empty")
 
     # -- playback ----------------------------------------------------------------
@@ -797,6 +808,9 @@ class MainWindow(Adw.ApplicationWindow):
         self._sync_cancel = threading.Event()
         self._sync_thread = threading.Thread(target=self._sync_worker, name="rg-catalog", daemon=True)
         self.side_title.set_subtitle("Updating station catalog…")
+        self.sync_progress.set_fraction(0.0)
+        self.sync_status.set_label("Starting…")
+        self.sync_box.set_visible(True)
         self.toast("Updating the station catalog in the background")
         self._sync_thread.start()
 
@@ -814,18 +828,32 @@ class MainWindow(Adw.ApplicationWindow):
             GLib.idle_add(self._on_sync_done, dataclasses.replace(report))
         except Exception as exc:  # noqa: BLE001 - report to the user
             log.exception("catalog update failed")
-            GLib.idle_add(self.toast, f"Catalog update failed: {exc}")
+            GLib.idle_add(self._on_sync_failed, str(exc))
         finally:
             catalog.close()
 
+    def _on_sync_failed(self, message: str) -> bool:
+        self.sync_box.set_visible(False)
+        self.side_title.set_subtitle("Catalog update failed")
+        self.toast(f"Catalog update failed: {message}")
+        return GLib.SOURCE_REMOVE
+
     def _on_sync_progress(self, report: SyncReport) -> bool:
         done = report.places_done + report.places_failed
-        self.side_title.set_subtitle(f"Updating catalog · {done}/{report.places_total} places")
+        total = max(1, report.places_total)
+        fraction = min(1.0, done / total)
+        self.sync_progress.set_fraction(fraction)
+        detail = f"{done:,} of {total:,} places"
+        if report.stations_saved:
+            detail += f" · {report.stations_saved:,} stations saved"
+        self.sync_status.set_label(detail)
+        self.side_title.set_subtitle(f"Updating catalog · {fraction * 100:.0f}%")
         return GLib.SOURCE_REMOVE
 
     def _on_sync_done(self, report: SyncReport) -> bool:
         self._reload_places()
         stats = self.catalog.stats()
+        self.sync_box.set_visible(False)
         self.side_title.set_subtitle(f"{stats.stations} stations in catalog")
         self.toast(f"Catalog updated: {stats.stations} stations, {report.places_failed} failed places")
         if self.side_stack.get_visible_child_name() == "empty" and self.sidebar_mode == "empty":

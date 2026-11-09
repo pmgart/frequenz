@@ -194,9 +194,29 @@ to a PNG after six seconds and quits (`FREQUENZ_SNAPSHOT_AFTER` changes the dela
 To rebuild the vector map after changing the build code, run `.venv/bin/frequenz build-globe`. It
 reuses the downloaded files.
 
-## macOS (planned)
+## macOS
 
-A native Mac app for Apple Silicon Macs running macOS 26 Tahoe or newer is planned. It is not built or released yet, so this README describes the Linux app. On a Mac, the data folder will be `~/Library/Application Support/frequenz`, and the keyboard shortcuts will show ⌘ instead of Ctrl. Developer notes for the Mac build: `docs/macos/HANDOFF.md`.
+A native Mac app for Apple Silicon Macs running macOS 27 or newer. The same GTK 4
+code runs on both platforms; the Mac work lives on the `macos-app` branch.
+
+Install `FREQUENZ-<version>-arm64.dmg` from the releases, open it and drag
+FREQUENZ to Applications. The build is ad-hoc signed but not notarised, so the
+first launch needs System Settings › Privacy & Security › Open Anyway. On a Mac
+the data folder is `~/Library/Application Support/frequenz` and the shortcuts
+show ⌘ instead of Ctrl. The first launch downloads the station catalog and shows
+its progress in the right panel.
+
+From a checkout:
+
+```
+scripts/macos-setup.sh
+.venv/bin/frequenz
+```
+
+`packaging/macos/build-app.sh` builds a self-contained `dist/FREQUENZ.app` with
+Python, GTK, libadwaita, GStreamer, the GIR typelibs, the Adwaita icons, Inter
+and the globe map inside it; `packaging/macos/make-dmg.sh` turns it into the
+`.dmg`. Developer notes: `docs/macos/HANDOFF.md`.
 
 ## Known limitations
 

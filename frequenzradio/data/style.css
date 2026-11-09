@@ -402,6 +402,28 @@ window.fq-light statuspage image {
     color: var(--fq-text-muted);
 }
 
+/* First run: the catalog download reports progress on the empty page. */
+progressbar.fq-sync-progress {
+    min-width: 260px;
+}
+
+progressbar.fq-sync-progress trough {
+    min-height: 6px;
+    border-radius: 3px;
+    background: alpha(currentColor, 0.18);
+}
+
+progressbar.fq-sync-progress progress {
+    min-height: 6px;
+    border-radius: 3px;
+    background: var(--fq-accent, #c6ff00);
+}
+
+label.fq-sync-status {
+    font-size: 0.9em;
+    color: var(--fq-text-muted);
+}
+
 scale.fq-zoom-scale trough {
     background: alpha(white, 0.25);
     min-width: 4px;

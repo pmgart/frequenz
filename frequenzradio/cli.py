@@ -178,6 +178,9 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_doctor()
     if args.command == "build-globe":
         return _cmd_build_globe(args)
+
+    from .fonts import register_bundled_fonts
     from .app import run_gui
 
+    register_bundled_fonts()
     return run_gui(["frequenz"])
