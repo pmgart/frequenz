@@ -87,6 +87,7 @@ Leftover checks: `grep -rn "frequenz-linux" .` → no matches. `grep -rn "for Li
 - dylibbundler rewrites all rpaths to the same prefix and leaves duplicates; dyld then refuses to load those plugins. `fix-rpaths.py` removes the duplicates (118 in the 0.2.1 build).
 - Homebrew paths the bundle still carried: `Python` referenced by `frequenz-bin` (fixed by rewriting both the `opt` and `Cellar` spellings), `libgstpython` (dropped), and the `lib-dynload`/`gi` override modules (now bundled).
 - The Homebrew bottles are built with `minos 27.0`; the bundle therefore requires macOS 27, not 26. Supporting 26 means older bottles or source builds.
+- GIO TLS: the bundle carries glib-networking's module and sets `GIO_MODULE_DIR`. Without it the system module loads a second glib and https streams fail.
 - First-run catalog: the app already had an empty-catalog sync; it now shows a progress bar and a place/station count on the status page, and a failure message instead of a silent toast.
 
 ## Assumptions

@@ -10,8 +10,8 @@
     median render callback 1.49 ms. The 3.2-core request fixed the framebuffer
     error that the first runs hit.
   - Playback: a real station played for 20.7 s; pause, resume and next work.
-  - Tests: 164 unit tests pass on macOS; the manual e2e suite passes 14 of 14
-    (search, favorites, random station, globe picking at 0.0 px error).
+  - Tests: 168 unit tests pass on macOS; the manual e2e suite passes 14 of 14
+    from the bundle (search, favorites, random station, globe picking at 0.0 px).
   - Doctor: GTK 4.24.1, libadwaita 1.10, GStreamer 1.28.9, osxaudiosink and the
     MP3/AAC/Opus/Vorbis/FLAC decoders, the macOS window server, the globe map.
 - **Phase 2 (packaging): done on this branch.** `packaging/macos/build-app.sh`
@@ -75,6 +75,12 @@ to load a library with duplicate rpaths, which silently kills plugins).
 
 A typelib loads its library by bare name (`libgtk-4.1.dylib`), so those libraries
 are copied explicitly; a link-time dependency walk does not see them.
+
+GIO's TLS backend lives in `Resources/gio/modules` and the launcher points
+`GIO_MODULE_DIR` at it. Without the module there is no https at all; with the
+host's Homebrew module instead, Homebrew's glib is loaded next to the bundled one
+and `GTlsBackendGnutls` fails, so every https stream stops. That bug made the
+first bundle build play only unencrypted streams.
 
 `FREQUENZ_BUNDLE_RESOURCES` also makes the app copy `Resources/globe` into the
 data folder on first launch, and `frequenzradio/fonts.py` registers the bundled

@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
     char contents[PATH_MAX], resources[PATH_MAX], frameworks[PATH_MAX];
     char python_home[PATH_MAX], python_bin[PATH_MAX], cache[PATH_MAX];
     char path[PATH_MAX], schemas[PATH_MAX], typelibs[PATH_MAX], plugins[PATH_MAX];
-    char scanner[PATH_MAX], pixbuf[PATH_MAX], registry[PATH_MAX];
+    char scanner[PATH_MAX], pixbuf[PATH_MAX], registry[PATH_MAX], gio_modules[PATH_MAX];
 
     join(contents, sizeof contents, macos, "/..");
     join(resources, sizeof resources, contents, "/Resources");
@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
     join(plugins, sizeof plugins, resources, "/gstreamer-1.0");
     join(scanner, sizeof scanner, macos, "/gst-plugin-scanner");
     join(pixbuf, sizeof pixbuf, resources, "/gdk-pixbuf-2.0/loaders");
+    join(gio_modules, sizeof gio_modules, resources, "/gio/modules");
     join(path, sizeof path, resources, "/share");
 
     const char *home = getenv("HOME");
@@ -83,6 +84,7 @@ int main(int argc, char **argv) {
     setenv("GI_TYPELIB_PATH", typelibs, 1);
     setenv("GSETTINGS_SCHEMA_DIR", schemas, 1);
     setenv("GDK_PIXBUF_MODULEDIR", pixbuf, 1);
+    setenv("GIO_MODULE_DIR", gio_modules, 1);
     setenv("GST_PLUGIN_SYSTEM_PATH_1_0", plugins, 1);
     setenv("GST_PLUGIN_PATH_1_0", plugins, 1);
     setenv("GST_PLUGIN_SCANNER", scanner, 1);

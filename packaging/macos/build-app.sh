@@ -111,6 +111,22 @@ for loader in "$BREW/lib/gdk-pixbuf-2.0/2.10.0/loaders/"*.so; do
     if [[ -e "$loader" ]]; then cp "$loader" "$APP/Contents/Resources/gdk-pixbuf-2.0/loaders/"; fi
 done
 
+step "GIO modules (TLS)"
+# souphttpsrc asks glib-networking for TLS. Without a module there is no https;
+# with the host's module, Homebrew's glib would be loaded next to the bundled
+# one (duplicate ObjC classes, GTlsBackendGnutls fails). GIO_MODULE_DIR points
+# at this folder in the launcher.
+mkdir -p "$APP/Contents/Resources/gio/modules"
+GIO_MODULES=()
+for module in "$BREW/lib/gio/modules/"*.so; do
+    if [[ -e "$module" ]]; then
+        cp "$module" "$APP/Contents/Resources/gio/modules/"
+    fi
+done
+for module in "$APP/Contents/Resources/gio/modules/"*.so; do
+    GIO_MODULES+=("$module")
+done
+
 step "GSettings schemas"
 mkdir -p "$APP/Contents/Resources/share/glib-2.0/schemas"
 for schema in "$BREW/share/glib-2.0/schemas/"*.xml "$BREW/share/glib-2.0/schemas/"*.dtd; do
@@ -208,7 +224,8 @@ step "Bundling dylibs (this takes a few minutes)"
 BINARIES=("$APP/Contents/MacOS/frequenz-bin")
 for binary in "$SP/gi/"*.so "$SP/gi/overrides/"*.so "$SP/cairo/"*.so "$STDLIB/lib-dynload/"*.so \
               "$APP/Contents/Resources/gstreamer-1.0/"*.dylib \
-              "$APP/Contents/Resources/gdk-pixbuf-2.0/loaders/"*.so "${TYPELIB_BINARIES[@]}"; do
+              "$APP/Contents/Resources/gdk-pixbuf-2.0/loaders/"*.so "${GIO_MODULES[@]}" \
+              "${TYPELIB_BINARIES[@]}"; do
     BINARIES+=("$binary")
 done
 DYLIB_ARGS=()
