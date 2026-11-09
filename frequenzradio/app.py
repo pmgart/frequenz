@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
+from pathlib import Path
 
 import gi
 
@@ -11,7 +13,20 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gdk, GLib, Gtk  # noqa: E402
 
-from .paths import APP_ID, APP_NAME, asset  # noqa: E402
+from .geodata import is_built  # noqa: E402
+from .osinfo import quit_accels  # noqa: E402
+from .paths import APP_ID, APP_NAME, asset, globe_dir  # noqa: E402
+
+
+def seed_bundled_globe() -> None:
+    """Inside the Mac app bundle, copy the pre-built globe map into the data folder on first launch."""
+    bundle = os.environ.get("FREQUENZ_BUNDLE_RESOURCES")
+    if not bundle:
+        return
+    source = Path(bundle) / "globe"
+    target = globe_dir()
+    if is_built(source) and not is_built(target):
+        shutil.copytree(source, target, dirs_exist_ok=True)
 
 
 class FrequenzApp(Adw.Application):
@@ -24,6 +39,10 @@ class FrequenzApp(Adw.Application):
         self.connect("shutdown", self._on_shutdown)
 
     def _on_startup(self, app) -> None:
+        try:
+            seed_bundled_globe()
+        except OSError as exc:  # a read-only or full data folder must not stop the app
+            print(f"could not copy the bundled globe map: {exc}", file=sys.stderr)
         from .state import AppState
         from .theme import apply_scheme, normalize
 
@@ -47,7 +66,7 @@ class FrequenzApp(Adw.Application):
         quit_action = Gio.SimpleAction.new("quit", None)
         quit_action.connect("activate", lambda *_: self.quit())
         self.add_action(quit_action)
-        self.set_accels_for_action("app.quit", ["<Primary>q"])
+        self.set_accels_for_action("app.quit", quit_accels())
 
     def _on_activate(self, app) -> None:
         if self.window is None:

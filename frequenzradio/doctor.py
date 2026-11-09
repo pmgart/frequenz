@@ -5,10 +5,33 @@ from __future__ import annotations
 import os
 
 from .geodata import is_built
+from .osinfo import is_macos
 from .paths import catalog_path, globe_dir
 
 GST_ELEMENTS = ("playbin3", "souphttpsrc", "decodebin", "autoaudiosink")
 AUDIO_DECODERS = ("mpg123audiodec", "avdec_aac", "opusdec", "vorbisdec", "flacdec")
+
+
+def _gtk_display_opens() -> bool:
+    """True when GTK can open a display; on macOS that is the window server."""
+    import gi
+
+    gi.require_version("Gtk", "4.0")
+    from gi.repository import Gtk
+
+    return bool(Gtk.init_check())
+
+
+def _display_status() -> tuple[bool, str]:
+    """Display check. macOS sets neither WAYLAND_DISPLAY nor DISPLAY, so GTK is asked instead."""
+    if is_macos():
+        try:
+            ok = _gtk_display_opens()
+        except Exception as exc:  # noqa: BLE001 - doctor reports everything
+            return False, str(exc)
+        return ok, "macOS window server" if ok else "no window server"
+    ok = bool(os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY"))
+    return ok, os.environ.get("XDG_SESSION_TYPE", "unknown session")
 
 
 def run_doctor() -> int:
@@ -58,8 +81,8 @@ def run_doctor() -> int:
     except Exception as exc:  # noqa: BLE001
         report("PyOpenGL", False, str(exc))
 
-    report("display", bool(os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY")),
-           os.environ.get("XDG_SESSION_TYPE", "unknown session"))
+    display_ok, display_detail = _display_status()
+    report("display", display_ok, display_detail)
 
     path = catalog_path()
     if path.exists():

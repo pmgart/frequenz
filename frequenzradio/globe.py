@@ -25,8 +25,10 @@ from typing import Callable
 
 import numpy as np
 
-# PyOpenGL must pick the same platform as GTK's GL context (EGL on Wayland).
-if os.environ.get("WAYLAND_DISPLAY"):
+from .osinfo import desktop_gl_version, is_macos  # noqa: E402
+
+# PyOpenGL must pick the same platform as GTK's GL context (EGL on Wayland). macOS always uses CGL.
+if not is_macos() and os.environ.get("WAYLAND_DISPLAY"):
     os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
 
 from OpenGL import GL as gl  # noqa: E402
@@ -346,7 +348,7 @@ class GlobeView(Gtk.GLArea):
         super().__init__()
         self.set_has_depth_buffer(False)  # painter's order: no depth test is needed
         self.set_auto_render(False)
-        self.set_required_version(3, 0)  # valid for desktop GL 3.3 and GLES 3.0 alike
+        self.set_required_version(*desktop_gl_version())  # GLES 3.0 on Linux; desktop 3.3 core on macOS
         self.set_hexpand(True)
         self.set_vexpand(True)
         self.set_focusable(False)

@@ -16,7 +16,7 @@ from .paths import catalog_path
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="frequenz",
-        description="FREQUENZ: a native, local and ad-free radio globe for Linux.",
+        description="FREQUENZ: a native, local and ad-free radio globe for Linux and macOS.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("-v", "--verbose", action="store_true", help="debug logging")
@@ -54,7 +54,7 @@ def _cmd_build_globe(args: argparse.Namespace) -> int:
         from .globe_build import build_globe, fetch_sources
     except ImportError as exc:
         print(f"building the globe needs shapely ({exc}); install with: "
-              f"pip install 'frequenz-linux[build]'", file=sys.stderr)
+              f"pip install 'frequenzradio[build]'", file=sys.stderr)
         return 1
 
     def log(message: str) -> None:

@@ -194,6 +194,10 @@ to a PNG after six seconds and quits (`FREQUENZ_SNAPSHOT_AFTER` changes the dela
 To rebuild the vector map after changing the build code, run `.venv/bin/frequenz build-globe`. It
 reuses the downloaded files.
 
+## macOS (planned)
+
+A native Mac app for Apple Silicon Macs running macOS 26 Tahoe or newer is planned. It is not built or released yet, so this README describes the Linux app. On a Mac, the data folder will be `~/Library/Application Support/frequenz`, and the keyboard shortcuts will show ⌘ instead of Ctrl. Developer notes for the Mac build: `docs/macos/HANDOFF.md`.
+
 ## Known limitations
 
 - The catalog is a snapshot. Stations come and go, so run `frequenz sync` now and then.

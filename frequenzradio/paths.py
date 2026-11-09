@@ -1,17 +1,25 @@
-"""Filesystem locations (XDG base directories)."""
+"""Filesystem locations: XDG base directories on Linux, Application Support on macOS."""
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
+from .osinfo import is_macos
+
 APP_ID = "se.laps.Frequenz"
 APP_NAME = "FREQUENZ"
 
 
 def data_dir() -> Path:
-    base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
-    path = Path(base) / "frequenz"
+    base = os.environ.get("XDG_DATA_HOME")
+    if base:
+        root = Path(base)
+    elif is_macos():
+        root = Path.home() / "Library" / "Application Support"
+    else:
+        root = Path.home() / ".local" / "share"
+    path = root / "frequenz"
     path.mkdir(parents=True, exist_ok=True)
     return path
 

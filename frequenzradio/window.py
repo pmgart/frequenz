@@ -22,6 +22,7 @@ from .catalog import Catalog  # noqa: E402
 from . import geo  # noqa: E402
 from .globe import GlobeView, PlaceSet  # noqa: E402
 from .paths import APP_ID, APP_NAME, catalog_path, globe_dir  # noqa: E402
+from .osinfo import is_macos, primary_label  # noqa: E402
 from .player import Player  # noqa: E402
 from .state import AppState  # noqa: E402
 from .theme import apply_scheme, normalize, other, window_class  # noqa: E402
@@ -36,6 +37,14 @@ log = logging.getLogger("frequenzradio.window")
 PAUSE_STATES = frozenset({"playing", "buffering", "loading"})
 PLAYER_HEIGHT = 152
 MAX_AUTO_SKIPS = 3
+
+
+def _primary_mask() -> Gdk.ModifierType:
+    """Modifier for the main shortcuts: Control everywhere, and Command as well on macOS."""
+    mask = Gdk.ModifierType.CONTROL_MASK
+    if is_macos():
+        mask |= Gdk.ModifierType.META_MASK
+    return mask
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -337,7 +346,7 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _on_key_pressed(self, controller, keyval, keycode, state) -> bool:
         name = Gdk.keyval_name(keyval) or ""
-        ctrl = bool(state & Gdk.ModifierType.CONTROL_MASK)
+        ctrl = bool(state & _primary_mask())
         if ctrl and name.lower() == "f":
             self.search.grab_focus()
             return True
@@ -852,7 +861,7 @@ class MainWindow(Adw.ApplicationWindow):
             developer_name="Unofficial desktop client",
             version="0.2.1",
             website=BASE_URL,
-            comments=("A native, local and ad-free radio globe for Linux. "
+            comments=("A native, local and ad-free radio globe for Linux and macOS. "
                       "Station data and streams belong to their owners; see the README."),
         )
         about.present(self)
@@ -865,6 +874,7 @@ class MainWindow(Adw.ApplicationWindow):
             "Click a dot — tune in; double-click — zoom to the place\n"
             "Escape — clear the list; Ctrl+Q — quit"
         )
+        text = text.replace("Ctrl+", primary_label() + "+")  # ⌘ on macOS; unchanged on Linux
         dialog = Adw.AlertDialog(heading="Keyboard shortcuts", body=text)
         dialog.add_response("close", "Close")
         dialog.present(self)
