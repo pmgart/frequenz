@@ -3,12 +3,33 @@
 from __future__ import annotations
 
 import os
+import platform
+import sys
+from pathlib import Path
 
 from .geodata import is_built
 from .paths import catalog_path, globe_dir
 
 GST_ELEMENTS = ("playbin3", "souphttpsrc", "decodebin", "autoaudiosink")
 AUDIO_DECODERS = ("mpg123audiodec", "avdec_aac", "opusdec", "vorbisdec", "flacdec")
+
+
+def _version_series(version: str) -> str:
+    """``3.14.8`` -> ``3.14``: the part that decides which site-packages folder a venv uses."""
+    return ".".join(version.split(".")[:2])
+
+
+def _declared_venv_version(cfg_path: Path) -> str:
+    """The ``version`` recorded in ``pyvenv.cfg``, or an empty string if it cannot be read."""
+    try:
+        text = cfg_path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    for line in text.splitlines():
+        key, _, value = line.partition("=")
+        if key.strip() == "version":
+            return value.strip()
+    return ""
 
 
 def run_doctor() -> int:
@@ -20,6 +41,23 @@ def run_doctor() -> int:
             failures += 1
         status = "ok" if ok else ("warn" if warn_only else "FAIL")
         print(f"[{status:>4}] {name}" + (f": {detail}" if detail else ""))
+
+    report("Python", True, f"{platform.python_version()} ({sys.executable})")
+
+    cfg_path = Path(sys.prefix) / "pyvenv.cfg"
+    if cfg_path.is_file():
+        declared = _declared_venv_version(cfg_path)
+        running = platform.python_version()
+        if not declared:
+            report("virtualenv matches the interpreter", False, f"cannot read {cfg_path}", warn_only=True)
+        else:
+            same = _version_series(declared) == _version_series(running)
+            report(
+                "virtualenv matches the interpreter",
+                same,
+                f"pyvenv.cfg says {declared}, running {running}"
+                + ("" if same else "; rebuild with scripts/install-desktop.sh --repair"),
+            )
 
     try:
         import gi

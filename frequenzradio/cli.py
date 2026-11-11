@@ -54,7 +54,7 @@ def _cmd_build_globe(args: argparse.Namespace) -> int:
         from .globe_build import build_globe, fetch_sources
     except ImportError as exc:
         print(f"building the globe needs shapely ({exc}); install with: "
-              f"pip install 'frequenz-linux[build]'", file=sys.stderr)
+              f"pip install 'frequenzradio[build]'", file=sys.stderr)
         return 1
 
     def log(message: str) -> None:

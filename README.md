@@ -175,7 +175,7 @@ GPU point sprites with the web app's size classes, and picking runs on the CPU.
 
 ```bash
 .venv/bin/pip install -e .[test]
-.venv/bin/python -m pytest -q          # 78 tests; 12 check the built map against known places and skip until build-globe ran
+.venv/bin/python -m pytest -q          # 154 tests; 12 check the built map against known places and skip until build-globe ran
 .venv/bin/python tests/e2e_gui_check.py  # manual: runs the real window and plays real streams
 .venv/bin/python tests/globe_zoom_check.py  # manual: flies through the zoom levels and saves screenshots
 ```
@@ -202,6 +202,39 @@ reuses the downloaded files.
 - Only Wayland with GNOME was tested. X11 should work through EGL or GLX but has not been checked.
 - The globe has no labels, roads or city lights. The closest zoom level is about 100 km above the surface.
   The ocean is one colour; the depth bands are not drawn (see "Globe and map data").
+
+## Troubleshooting
+
+### The app stops starting after a Fedora release upgrade
+
+Symptom: the app menu entry, or `.venv/bin/frequenz`, exits immediately with
+
+```
+ModuleNotFoundError: No module named 'frequenzradio'
+```
+
+Cause: a virtualenv records the interpreter it was built with and keeps its packages in
+`lib/pythonX.Y/site-packages`. `python3 -m venv` points `.venv/bin/python3` at `/usr/bin/python3`, and a
+Fedora release upgrade (`dnf system-upgrade`) moves that symlink to a new minor version. The venv then runs
+on a different Python than the one it was built for, so its `site-packages` folder is no longer on
+`sys.path` and the package cannot be imported. The code, the catalog and the map are fine.
+
+Fix: rebuild the venv against the new interpreter, then reinstall the package and the launcher:
+
+```bash
+scripts/install-desktop.sh --repair
+```
+
+The catalog, the vector map and the favourites in `~/.local/share/frequenz` are not touched. If
+`/usr/bin/python3` is not the interpreter you want, set `FREQUENZ_PYTHON` to another one first; it must be a
+system Python, because the venv imports PyGObject, GTK and GStreamer from the OS.
+
+`frequenz doctor` prints the interpreter and its `pyvenv.cfg` version, and fails when the two disagree:
+
+```
+[  ok] Python: 3.15.2 (/home/pablo/src/frequenz/.venv/bin/python)
+[  ok] virtualenv matches the interpreter: pyvenv.cfg says 3.15.2, running 3.15.2
+```
 
 ## Uninstall
 
