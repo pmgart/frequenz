@@ -5,12 +5,42 @@ from __future__ import annotations
 import argparse
 import logging
 import signal
+import sqlite3
 import sys
 import threading
 import time
 
 from . import __version__
+from .api import ApiError
 from .paths import catalog_path
+
+
+def _bounded_int(minimum: int, maximum: int):
+    def parse(value: str) -> int:
+        try:
+            number = int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"not an integer: {value!r}") from None
+        if not minimum <= number <= maximum:
+            raise argparse.ArgumentTypeError(
+                f"must be between {minimum} and {maximum}"
+            )
+        return number
+    return parse
+
+
+def _bounded_float(minimum: float, maximum: float):
+    def parse(value: str) -> float:
+        try:
+            number = float(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"not a number: {value!r}") from None
+        if not minimum <= number <= maximum:
+            raise argparse.ArgumentTypeError(
+                f"must be between {minimum} and {maximum}"
+            )
+        return number
+    return parse
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -23,12 +53,14 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command")
 
     sync = sub.add_parser("sync", help="download or refresh the station catalog")
-    sync.add_argument("--workers", type=int, default=4, help="parallel requests (default 4)")
+    sync.add_argument("--workers", type=_bounded_int(1, 32), default=4,
+                      help="parallel requests (default 4)")
     sync.add_argument(
-        "--min-interval", type=float, default=0.05,
+        "--min-interval", type=_bounded_float(0.0, 60.0), default=0.05,
         help="minimum seconds between requests across all workers (default 0.05)",
     )
-    sync.add_argument("--limit", type=int, default=None, help="only sync the first N places")
+    sync.add_argument("--limit", type=_bounded_int(1, 1_000_000), default=None,
+                      help="only sync the first N places")
     sync.add_argument("--full", action="store_true", help="re-fetch every place")
     sync.add_argument("--places-only", action="store_true", help="refresh the place list only")
 
@@ -36,13 +68,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     search = sub.add_parser("search", help="search stations in the local catalog")
     search.add_argument("query")
-    search.add_argument("--limit", type=int, default=20)
+    search.add_argument("--limit", type=_bounded_int(1, 1000), default=20)
 
     sub.add_parser("doctor", help="check GTK, GStreamer and OpenGL prerequisites")
     build_globe_parser = sub.add_parser(
         "build-globe", help="download Natural Earth data and build the globe's vector map (needs shapely)"
     )
-    build_globe_parser.add_argument("--workers", type=int, default=None, help="parallel processes (default: up to 4)")
+    build_globe_parser.add_argument("--workers", type=_bounded_int(1, 8), default=None,
+                                    help="parallel processes (default: up to 4)")
     sub.add_parser("gui", help="start the desktop app (default)")
     return parser
 
@@ -53,8 +86,13 @@ def _cmd_build_globe(args: argparse.Namespace) -> int:
     try:
         from .globe_build import build_globe, fetch_sources
     except ImportError as exc:
-        print(f"building the globe needs shapely ({exc}); install with: "
-              f"pip install 'frequenz-linux[build]'", file=sys.stderr)
+        print(
+            f"building the globe needs shapely ({exc}).\n"
+            "  pip install 'frequenzradio[build]'\n"
+            "  or the distribution package: sudo dnf install python3-shapely "
+            "/ sudo apt install python3-shapely",
+            file=sys.stderr,
+        )
         return 1
 
     def log(message: str) -> None:
@@ -121,6 +159,8 @@ def _cmd_sync(args: argparse.Namespace) -> int:
         file=sys.stderr,
     )
     catalog.close()
+    if report.cancelled:
+        return 130
     return 0 if not report.failures else 1
 
 
@@ -168,16 +208,22 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.WARNING,
         format="%(levelname)s %(name)s: %(message)s",
     )
-    if args.command == "sync":
-        return _cmd_sync(args)
-    if args.command == "stats":
-        return _cmd_stats()
-    if args.command == "search":
-        return _cmd_search(args)
-    if args.command == "doctor":
-        return _cmd_doctor()
-    if args.command == "build-globe":
-        return _cmd_build_globe(args)
+    try:
+        if args.command == "sync":
+            return _cmd_sync(args)
+        if args.command == "stats":
+            return _cmd_stats()
+        if args.command == "search":
+            return _cmd_search(args)
+        if args.command == "doctor":
+            return _cmd_doctor()
+        if args.command == "build-globe":
+            return _cmd_build_globe(args)
+    except (ApiError, sqlite3.Error, OSError, ValueError) as exc:
+        if args.verbose:
+            logging.exception("command failed")
+        print(f"frequenz: {exc}", file=sys.stderr)
+        return 1
     from .app import run_gui
 
     return run_gui(["frequenz"])

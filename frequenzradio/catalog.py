@@ -128,12 +128,22 @@ class Catalog:
         self.db.execute("PRAGMA foreign_keys=OFF")
         self.db.executescript(SCHEMA)  # creates missing tables and triggers
         previous = self.get_meta("schema_version")
-        self.set_meta("schema_version", SCHEMA_VERSION)
-        self.db.commit()
-        if previous != SCHEMA_VERSION:
+        try:
+            previous_num = int(previous) if previous is not None else 0
+        except (TypeError, ValueError):
+            previous_num = 0
+        current_num = int(SCHEMA_VERSION)
+        if previous_num < current_num:
+            # Repair first, stamp the version only when the migration succeeded, so a
+            # crash mid-migration does not leave the database marked as upgraded.
             self._clean_existing_metadata()
             # Version 1 catalogs can miss stations saved after their last completed sync.
             self.rebuild_search_index()
+            self.set_meta("schema_version", SCHEMA_VERSION)
+            self.db.commit()
+        elif previous_num > current_num:
+            # Opened by an older build. Do not downgrade the version or rewrite data.
+            pass
 
     def close(self) -> None:
         self.db.close()
@@ -154,6 +164,11 @@ class Catalog:
     def upsert_places(self, places: Iterable[Place], version: str | None) -> int:
         count = 0
         with self.db:
+            stored_version = self.get_meta("places_version")
+            if version and stored_version and version != stored_version:
+                # The remote dataset changed: refetch stations for every place, not only
+                # the ones whose station count happens to differ.
+                self.db.execute("UPDATE places SET channels_synced = 0")
             for p in places:
                 self.db.execute(
                     """
@@ -162,7 +177,10 @@ class Catalog:
                     ON CONFLICT(id) DO UPDATE SET
                         title = excluded.title, country = excluded.country,
                         lng = excluded.lng, lat = excluded.lat, size = excluded.size,
-                        boost = excluded.boost, url = excluded.url
+                        boost = excluded.boost, url = excluded.url,
+                        channels_synced = CASE
+                            WHEN places.size <> excluded.size THEN 0
+                            ELSE places.channels_synced END
                     """,
                     (p.id, p.title, p.country, p.lng, p.lat, p.size, int(p.boost), p.url),
                 )
@@ -290,6 +308,7 @@ class Catalog:
         query = fts_query(text)
         if not query:
             return []
+        limit = max(0, min(int(limit), 1000))
         return list(
             self.db.execute(
                 """

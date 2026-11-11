@@ -18,7 +18,18 @@ def data_dir() -> Path:
 
 def catalog_path() -> Path:
     override = os.environ.get("FREQUENZ_CATALOG")
-    return Path(override).expanduser() if override else data_dir() / "catalog.sqlite"
+    if not override:
+        return data_dir() / "catalog.sqlite"
+    path = Path(override).expanduser()
+    if path.is_dir():
+        raise ValueError(f"FREQUENZ_CATALOG points at a directory: {path}")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise ValueError(
+            f"cannot create the directory for FREQUENZ_CATALOG={path}: {exc}"
+        ) from exc
+    return path
 
 
 def state_path() -> Path:

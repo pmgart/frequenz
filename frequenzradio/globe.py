@@ -36,7 +36,7 @@ import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from . import geo, geodata  # noqa: E402
 
@@ -358,6 +358,8 @@ class GlobeView(Gtk.GLArea):
         self._on_focus = on_focus
         self._on_zoom = on_zoom
         self.gl_error: str | None = None  # why the OpenGL view could not start, or None
+        self.data_error: str | None = None  # why a vector-map layer could not be loaded
+        self._last_pulse = 0.0  # throttle the playing-dot redraw to ~15 Hz
         self.places: PlaceSet | None = None
         self._scales: np.ndarray | None = None
 
@@ -605,7 +607,13 @@ class GlobeView(Gtk.GLArea):
             self._on_zoom(self.dist)
 
         pulsing = self.playing is not None and self.playing >= 0
-        if changed or pulsing or self._state_dirty or self._needs_upload:
+        pulse_due = False
+        if pulsing:
+            now = time.monotonic()
+            if now - self._last_pulse >= 1.0 / 15.0:
+                self._last_pulse = now
+                pulse_due = True
+        if changed or pulse_due or self._state_dirty or self._needs_upload:
             self.queue_render()
         return GLib.SOURCE_CONTINUE
 
@@ -679,8 +687,15 @@ class GlobeView(Gtk.GLArea):
         if not self._gl_ready or not self._prefetch_queue:
             return False
         layer, lod = self._prefetch_queue.pop(0)
-        self.make_current()
-        self._mesh(layer, lod)
+        if not self.make_current():
+            self._prefetch_queue.clear()
+            return False
+        try:
+            self._mesh(layer, lod)
+        finally:
+            # The idle callback must not leave a foreign GL context current on the
+            # main thread; GTK only guarantees it inside ::render.
+            Gdk.GLContext.clear_current()
         return bool(self._prefetch_queue)
 
     def _mesh(self, layer: str, lod: int) -> _Mesh | None:
@@ -688,13 +703,26 @@ class GlobeView(Gtk.GLArea):
             return self._base
         key = (layer, lod)
         mesh = self._meshes.get(key)
-        if mesh is None and key not in self._missing:
-            arrays = geodata.load_layer(self._globe_dir, layer, lod) if self._globe_dir is not None else None
+        if mesh is not None or key in self._missing:
+            return mesh
+        try:
+            arrays = (
+                geodata.load_layer(self._globe_dir, layer, lod)
+                if self._globe_dir is not None
+                else None
+            )
             if arrays is None:
                 self._missing.add(key)
                 return None
             mesh = self._upload_arrays(arrays)
-            self._meshes[key] = mesh
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            # A truncated .npz or a file built with a different key set must not raise
+            # inside ::render on every frame. Mark the layer unusable and report once.
+            log.warning("globe layer %s LOD %s unusable: %s", layer, lod, exc)
+            self._missing.add(key)
+            self.data_error = f"{layer} (zoom level {lod})"
+            return None
+        self._meshes[key] = mesh
         return mesh
 
     def _upload_arrays(self, arrays: dict[str, np.ndarray]) -> _Mesh:

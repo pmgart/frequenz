@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>se.laps.Frequenz</id>
+
+  <name>FREQUENZ</name>
+  <summary>Native, local and ad-free radio globe</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <developer id="se.laps">
+    <name>LAPS AB</name>
+  </developer>
+
+  <description>
+    <p>
+      FREQUENZ turns the globe into a radio dial. Spin the earth, pick a place and listen to its
+      live stations. Browsing, search and favourites work from a local catalog; only the audio
+      stream needs the network.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>OpenGL globe built from Natural Earth data, lit by the real sun for the current time</li>
+      <li>About 12,900 places with their stations, searchable offline</li>
+      <li>Live ICY titles, automatic reconnect, favourites and history</li>
+      <li>No ads, no accounts and no tracking</li>
+    </ul>
+    <p>
+      FREQUENZ is an unofficial client for radio.garden. Station names, place data and streams
+      belong to radio.garden and the broadcasters.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">se.laps.Frequenz.desktop</launchable>
+  <provides>
+    <binary>frequenz</binary>
+  </provides>
+
+  <categories>
+    <category>AudioVideo</category>
+    <category>Audio</category>
+  </categories>
+  <keywords>
+    <keyword>radio</keyword>
+    <keyword>stream</keyword>
+    <keyword>globe</keyword>
+    <keyword>live</keyword>
+    <keyword>station</keyword>
+  </keywords>
+
+  <url type="homepage">https://github.com/pmgart/frequenz</url>
+  <url type="bugtracker">https://github.com/pmgart/frequenz/issues</url>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="0.3.0" date="2026-11-11">
+      <description>
+        <p>New application icon and AppStream metadata, Flatpak packaging, and a
+        code-review pass over catalog sync, playback teardown and the globe.</p>
+      </description>
+    </release>
+    <release version="0.2.1" date="2026-11-07"/>
+  </releases>
+</component>

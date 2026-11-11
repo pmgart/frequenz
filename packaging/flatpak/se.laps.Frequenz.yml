@@ -1,0 +1,47 @@
+app-id: se.laps.Frequenz
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+command: frequenz
+
+finish-args:
+  # Live streams and the one-time catalog download.
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  # OpenGL globe.
+  - --device=dri
+  # PipeWire sound server (the runtime maps PulseAudio clients onto it).
+  - --filesystem=xdg-run/pipewire-0
+
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /share/man
+  - '*.a'
+  - '*.la'
+
+modules:
+  # numpy, PyOpenGL and shapely (the last one only for 'frequenz build-globe').
+  # Regenerate with:
+  #   flatpak_pip_generator --runtime=org.gnome.Sdk//51 \
+  #       --prefer-wheels=numpy,shapely --output python3-deps \
+  #       numpy PyOpenGL shapely
+  - python3-deps.json
+
+  - name: frequenz
+    buildsystem: simple
+    build-commands:
+      - pip3 install --disable-pip-version-check --no-index --no-build-isolation
+        --no-deps --prefix=${FLATPAK_DEST} .
+      - install -Dm644 frequenzradio/data/se.laps.Frequenz.desktop
+        ${FLATPAK_DEST}/share/applications/se.laps.Frequenz.desktop
+      - install -Dm644 frequenzradio/data/se.laps.Frequenz.metainfo.xml
+        ${FLATPAK_DEST}/share/metainfo/se.laps.Frequenz.metainfo.xml
+      - for s in 16 24 32 48 64 128 256 512; do
+        install -Dm644 frequenzradio/data/icons/hicolor/${s}x${s}/apps/se.laps.Frequenz.png
+        ${FLATPAK_DEST}/share/icons/hicolor/${s}x${s}/apps/se.laps.Frequenz.png; done
+    sources:
+      - type: dir
+        path: ../..
