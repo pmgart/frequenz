@@ -8,9 +8,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_ID="se.laps.Frequenz"
 APPS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
-ICON_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/scalable/apps"
+ICON_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor"
+ICON_SIZES=(16 24 32 48 64 128 256 512)
 DESKTOP_FILE="$APPS_DIR/$APP_ID.desktop"
-ICON_FILE="$ICON_DIR/$APP_ID.svg"
 VENV="$ROOT/.venv"
 LAUNCHER="$VENV/bin/frequenz"
 
@@ -32,8 +32,11 @@ for arg in "$@"; do
 done
 
 if [[ "$ACTION" == "remove" ]]; then
-    rm -f "$DESKTOP_FILE" "$ICON_FILE"
-    echo "Removed $DESKTOP_FILE and $ICON_FILE"
+    rm -f "$DESKTOP_FILE" "$ICON_DIR/scalable/apps/$APP_ID.svg"
+    for size in "${ICON_SIZES[@]}"; do
+        rm -f "$ICON_DIR/${size}x${size}/apps/$APP_ID.png"
+    done
+    echo "Removed $DESKTOP_FILE and the $APP_ID icons"
     exit 0
 fi
 
@@ -117,8 +120,14 @@ if ! venv_healthy; then
     fi
 fi
 
-mkdir -p "$APPS_DIR" "$ICON_DIR"
-cp "$ROOT/frequenzradio/data/icons/hicolor/scalable/apps/$APP_ID.svg" "$ICON_FILE"
+mkdir -p "$APPS_DIR"
+# The 0.2.1 icon was a single scalable SVG. Remove it so themes cannot prefer the old artwork.
+rm -f "$ICON_DIR/scalable/apps/$APP_ID.svg"
+for size in "${ICON_SIZES[@]}"; do
+    icon_target="$ICON_DIR/${size}x${size}/apps"
+    mkdir -p "$icon_target"
+    cp "$ROOT/frequenzradio/data/icons/hicolor/${size}x${size}/apps/$APP_ID.png" "$icon_target/$APP_ID.png"
+done
 if grep -q '[\\"`$]' <<< "$LAUNCHER"; then
     echo "error: launcher path contains a quote, backslash, dollar sign or backtick; cannot write it to Exec= safely: $LAUNCHER" >&2
     exit 1

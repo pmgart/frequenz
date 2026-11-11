@@ -19,33 +19,55 @@ itself needs the network.
 - **Player**: GStreamer `playbin3` with live ICY titles ("now playing"), automatic reconnect,
   volume, previous and next within the current list.
 - **Local first**: the catalog is downloaded once (`frequenz sync`) and stored in
-  `~/.local/share/frequenzradio/`.
+  `~/.local/share/frequenz/`.
 - **No ads**: no ad SDKs, consent frameworks, promo banners or pre-roll ad media. See
   [What "no ads" means here](#what-no-ads-means-here).
 
 ## Requirements
 
-Ubuntu 24.04 or later with GNOME on Wayland (tested on Ubuntu 26.04 with an NVIDIA RTX 4060 Ti).
+Linux with GTK 4 and libadwaita on Wayland or X11. Tested on Fedora 45 (KDE Plasma 6) and
+Ubuntu 26.04 (GNOME); Ubuntu 24.04 is not tested. The Flatpak runs on any Flatpak host.
+
+- OpenGL 3.3 core (or OpenGL ES 3.0 through EGL). Works with Mesa and NVIDIA drivers.
+- PipeWire or PulseAudio for audio output (autoaudiosink).
+
+### Install a package
+
+| Format | Command |
+|--------|---------|
+| Fedora 45 | `sudo dnf install ./frequenz-0.2.1-1.fc45.noarch.rpm` |
+| Ubuntu 26.04 | `sudo apt install ./frequenz_0.2.1-1_all.deb` |
+| Flatpak | `flatpak-builder --user --install packaging/flatpak/se.laps.Frequenz.yml` (see `packaging/README.md`) |
+
+PyGObject, GTK, libadwaita and GStreamer come from the distribution; the packages pull them in.
+
+### Run from source
+
+On Ubuntu:
 
 ```bash
 sudo apt install python3-gi python3-venv gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gstreamer-1.0 \
     gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav
 ```
 
-- OpenGL 3.0+ (desktop GL or GLES 3.0 through EGL). Works with Mesa and NVIDIA drivers.
-- PipeWire or PulseAudio for audio output (autoaudiosink).
+On Fedora:
+
+```bash
+sudo dnf install python3-gobject gtk4 libadwaita gstreamer1-plugins-good \
+    gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free rsms-inter-fonts
+```
 
 ## Install and first run
 
 ```bash
 cd Frequenz
 python3 -m venv --system-site-packages .venv   # system site packages give access to PyGObject
-.venv/bin/pip install -e .[build]             # [build] adds shapely, needed once to build the map
-.venv/bin/frequenz doctor                    # checks GTK, libadwaita, GStreamer and OpenGL
-.venv/bin/frequenz sync                      # one-time catalog download (see below)
-.venv/bin/frequenz build-globe               # one-time vector map for the globe (about 50 MB download)
-scripts/install-desktop.sh                      # optional: app-menu launcher and icon
-.venv/bin/frequenz                           # start the app
+.venv/bin/pip install -e '.[build]'            # [build] adds shapely, needed once to build the map
+.venv/bin/frequenz doctor                      # checks GTK, libadwaita, GStreamer and OpenGL
+.venv/bin/frequenz sync                        # one-time catalog download (see below)
+.venv/bin/frequenz build-globe                 # one-time vector map for the globe (about 50 MB download)
+scripts/install-desktop.sh                     # optional: app-menu launcher and icon
+.venv/bin/frequenz                             # start the app
 ```
 
 The first start also downloads the catalog automatically if it is missing. Without the vector map the
@@ -54,8 +76,8 @@ globe still starts, shows its dots, and says in the corner that the map is not b
 ### Catalog sync
 
 `frequenz sync` fetches the place list (one request) and then the station list of every place
-(about 12,900 requests). Requests are throttled to roughly 10 per second across four workers,
-retried with back-off on 429 and 5xx responses, and resumable: stop with Ctrl+C at any time and
+(about 12,900 requests). Requests are throttled by `--min-interval` (0.05 s by default, 0.1 s in the
+GUI), retried with back-off on 429 and 5xx responses, and resumable: stop with Ctrl+C at any time and
 run it again to fetch only the missing places.
 
 ```bash
@@ -78,8 +100,8 @@ on the WGS84 ellipsoid, so the poles are flattened by about 1/300 as on Earth. T
 real sun for the current time.
 
 `frequenz build-globe` builds the map once. It downloads about 31 MB of Natural Earth files into
-`~/.local/share/frequenzradio/naturalearth/` and records their SHA-256 checksums in `manifest.json`. It
-then writes about 36 MB of triangle arrays to `~/.local/share/frequenzradio/globe/`. The build takes about
+`~/.local/share/frequenz/naturalearth/` and records their SHA-256 checksums in `manifest.json`. It
+then writes about 36 MB of triangle arrays to `~/.local/share/frequenz/globe/`. The build takes about
 half a minute on four processes and needs the `build` extra (shapely). Viewing needs only numpy.
 
 Zoom levels, from far to close, with the altitude above the surface:
@@ -121,7 +143,7 @@ cleaner source, for example contours from the GEBCO grid. The globe has no label
 
 ## Data, privacy and the service
 
-- **Local data**: `~/.local/share/frequenzradio/catalog.sqlite` (catalog, favorites, history),
+- **Local data**: `~/.local/share/frequenz/catalog.sqlite` (catalog, favorites, history),
   `state.json` (window and last station) and `sync.log`. Set `FREQUENZ_CATALOG` to use another
   database file.
 - **Names**: station and place names are cleaned when they are read. Invisible characters (such

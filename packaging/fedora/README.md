@@ -20,9 +20,11 @@ The RPMs, the source RPM and `SHA256SUMS` are written to `~/frequenz-rpm-out` (o
 
 ## Release
 
-`v0.2.1` is a pre-release on the private repository. It has the Fedora 45 and Ubuntu 26.04 packages, built from the same program source (commit `8a47904` on `main`): the Fedora 45 RPM and source RPM, the Ubuntu .deb and the source tarball, with `SHA256SUMS`. `v0.2.0` and `v0.1.1` are superseded.
+`v0.2.1` is a pre-release on the private repository. The Fedora, Ubuntu and Flatpak packages are
+built from the same tree (branch `fedora-compat`); the merge to `main` and the commit id of the
+release build are recorded here when the release is cut. `v0.2.0` and `v0.1.1` are superseded.
 
-The package is for Fedora 45 only. It installs into Fedora 45's Python 3.15 path and will not run on other
+The RPM is for Fedora 45 only. It installs into Fedora 45's Python 3.15 path and will not run on other
 releases. For another release, run the script with that image, for example `fedora:44`.
 
 ## Runtime dependencies
@@ -30,7 +32,7 @@ releases. For another release, run the script with that image, for example `fedo
 | Requires | Why |
 |---|---|
 | `python3-gobject`, `gtk4`, `libadwaita`, `gstreamer1` | GTK 4 and libadwaita UI, GStreamer through PyGObject |
-| `gstreamer1-plugins-base`, `-good`, `gstreamer1-plugins-bad-free`, `gstreamer1-libav` | `playbin3`, HTTP sources, MP3, AAC, Opus, Vorbis and FLAC decoders |
+| `gstreamer1-plugins-base`, `-good`, `gstreamer1-plugins-bad-free`, `gstreamer1-plugins-ugly-free` | `playbin3`, HTTP sources, MP3, AAC, Opus, Vorbis and FLAC decoders (no RPM Fusion needed) |
 | `hicolor-icon-theme` | application icon |
 | `rsms-inter-fonts` | Inter, the typeface of the interface |
 | `python3dist(pyopengl)`, `python3dist(numpy)` | generated from the Python metadata |

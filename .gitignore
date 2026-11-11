@@ -8,3 +8,5 @@ dist/
 *.sqlite-wal
 *.sqlite-shm
 *.apk
+build-flatpak/
+.flatpak-builder/

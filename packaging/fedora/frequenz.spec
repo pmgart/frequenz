@@ -1,8 +1,5 @@
 # FREQUENZ RPM spec for Fedora.
 # Build and check it in a clean Fedora container: packaging/fedora/verify-in-fedora.sh
-#
-# Open items before a Fedora review submission:
-#   - no AppStream metainfo file yet: KDE Discover will not list the app until one exists
 
 %global srcname frequenzradio
 
@@ -10,7 +7,7 @@ Name:           frequenz
 Version:        0.2.1
 Release:        1%{?dist}
 Summary:        Native, local and ad-free radio globe for Linux
-License:        GPL-3.0-or-later
+License:        GPL-3.0-or-later AND ISC AND MIT
 URL:            https://github.com/pmgart/frequenz
 Source0:        %{srcname}-%{version}.tar.gz
 BuildArch:      noarch
@@ -24,6 +21,7 @@ BuildRequires:  gtk4
 BuildRequires:  libadwaita
 BuildRequires:  gstreamer1
 BuildRequires:  gstreamer1-plugins-base
+BuildRequires:  appstream
 
 Requires:       python3-gobject
 Requires:       gtk4
@@ -32,7 +30,7 @@ Requires:       gstreamer1
 Requires:       gstreamer1-plugins-base
 Requires:       gstreamer1-plugins-good
 Requires:       gstreamer1-plugins-bad-free
-Requires:       gstreamer1-libav
+Requires:       gstreamer1-plugins-ugly-free
 Requires:       hicolor-icon-theme
 Requires:       rsms-inter-fonts
 Recommends:     python3-shapely
@@ -57,18 +55,25 @@ and the broadcasters. There are no ads and no premium paths.
 %pyproject_save_files %{srcname}
 install -Dpm0644 %{srcname}/data/se.laps.Frequenz.desktop \
     %{buildroot}%{_datadir}/applications/se.laps.Frequenz.desktop
-install -Dpm0644 %{srcname}/data/icons/hicolor/scalable/apps/se.laps.Frequenz.svg \
-    %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/se.laps.Frequenz.svg
+install -Dpm0644 %{srcname}/data/se.laps.Frequenz.metainfo.xml \
+    %{buildroot}%{_datadir}/metainfo/se.laps.Frequenz.metainfo.xml
+for size in 16 24 32 48 64 128 256 512; do
+    install -Dpm0644 %{srcname}/data/icons/hicolor/${size}x${size}/apps/se.laps.Frequenz.png \
+        %{buildroot}%{_datadir}/icons/hicolor/${size}x${size}/apps/se.laps.Frequenz.png
+done
 
 %check
 desktop-file-validate %{buildroot}%{_datadir}/applications/se.laps.Frequenz.desktop
+appstreamcli validate --no-net %{srcname}/data/se.laps.Frequenz.metainfo.xml
 %pytest -q
 
 %files -f %{pyproject_files}
 %doc README.md
+%license %{srcname}/data/icons/symbolic/LICENSE-lucide.txt
 %{_bindir}/frequenz
 %{_datadir}/applications/se.laps.Frequenz.desktop
-%{_datadir}/icons/hicolor/scalable/apps/se.laps.Frequenz.svg
+%{_datadir}/metainfo/se.laps.Frequenz.metainfo.xml
+%{_datadir}/icons/hicolor/*/apps/se.laps.Frequenz.png
 
 %changelog
 * Sat Nov 07 2026 Pablo Magana <pablo@laps.se> - 0.2.1-1

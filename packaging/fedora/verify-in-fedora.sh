@@ -15,6 +15,10 @@ VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/pyproject.toml" | head -n 
 OUT="${FREQUENZ_RPM_OUT:-$HOME/frequenz-rpm-out}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+# Rootless podman maps container root to the invoking host user, so the outputs are
+# already owned correctly; only docker needs the explicit chown.
+CHOWN_OUT=1
+if [ "$ENGINE" = "podman" ]; then CHOWN_OUT=0; fi
 
 mkdir -p "$OUT"
 rm -f "$OUT"/frequenz-*
@@ -26,11 +30,12 @@ echo "source: frequenzradio-$VERSION.tar.gz ($(tar -tzf "$WORK/frequenzradio-$VE
     -e "VERSION=$VERSION" \
     -e "HOST_UID=$(id -u)" \
     -e "HOST_GID=$(id -g)" \
-    -v "$WORK:/work:ro" \
-    -v "$OUT:/out" \
+    -e "CHOWN_OUT=$CHOWN_OUT" \
+    -v "$WORK:/work:ro,z" \
+    -v "$OUT:/out:z" \
     "$IMAGE" bash -euo pipefail -c '
 echo "== $(cat /etc/fedora-release)"
-trap "chown -R $HOST_UID:$HOST_GID /out || true" EXIT
+if [ "$CHOWN_OUT" = "1" ]; then trap "chown -R $HOST_UID:$HOST_GID /out || true" EXIT; fi
 dnf -y -q install rpm-build dnf-plugins-core dnf5-plugins pyproject-rpm-macros python3-devel desktop-file-utils
 mkdir -p /root/rpmbuild/SOURCES /root/rpmbuild/SPECS /tmp/src
 cp "/work/frequenzradio-$VERSION.tar.gz" /root/rpmbuild/SOURCES/
@@ -47,10 +52,10 @@ cp /root/rpmbuild/RPMS/noarch/frequenz-*.noarch.rpm /root/rpmbuild/SRPMS/frequen
 echo "== install the RPM together with its runtime dependencies"
 dnf -y install /root/rpmbuild/RPMS/noarch/frequenz-*.noarch.rpm
 rpm -q frequenz
-test "$(rpm -q --qf "%{LICENSE}" frequenz)" = "GPL-3.0-or-later"
-rpm -qL frequenz | grep -q "LICENSE$" || { echo "FAIL: LICENSE file is not in the package"; exit 1; }
+test "$(rpm -q --qf "%{LICENSE}" frequenz)" = "GPL-3.0-or-later AND ISC AND MIT"
+rpm -qL frequenz | grep -q "LICENSE" || { echo "FAIL: LICENSE file is not in the package"; exit 1; }
 if rpm -qlp /root/rpmbuild/RPMS/noarch/frequenz-*.noarch.rpm | grep -E -q "[.](sqlite|apk)$"; then echo "FAIL: catalog or APK inside the package"; exit 1; fi
-echo "package checked: license GPL-3.0-or-later, LICENSE file present, no catalog or APK"
+echo "package checked: license GPL-3.0-or-later AND ISC AND MIT, LICENSE file present, no catalog or APK"
 desktop-file-validate /usr/share/applications/se.laps.Frequenz.desktop && echo "desktop file: valid"
 echo "== frequenz doctor (no display in the container, so the display and catalog lines are expected to warn)"
 frequenz doctor || true

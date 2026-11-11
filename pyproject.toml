@@ -27,7 +27,7 @@ frequenz = "frequenzradio.cli:main"
 packages = ["frequenzradio"]
 
 [tool.setuptools.package-data]
-frequenzradio = ["data/*", "data/icons/hicolor/scalable/apps/*", "data/icons/symbolic/*"]
+frequenzradio = ["data/*", "data/icons/hicolor/*/apps/*.png", "data/icons/symbolic/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
