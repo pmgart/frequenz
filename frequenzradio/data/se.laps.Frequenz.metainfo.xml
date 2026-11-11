@@ -54,6 +54,12 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.3.0" date="2026-11-11">
+      <description>
+        <p>New application icon and AppStream metadata, Flatpak packaging, and a
+        code-review pass over catalog sync, playback teardown and the globe.</p>
+      </description>
+    </release>
     <release version="0.2.1" date="2026-11-07"/>
   </releases>
 </component>

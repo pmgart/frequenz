@@ -35,8 +35,8 @@ Ubuntu 26.04 (GNOME); Ubuntu 24.04 is not tested. The Flatpak runs on any Flatpa
 
 | Format | Command |
 |--------|---------|
-| Fedora 45 | `sudo dnf install ./frequenz-0.2.1-1.fc45.noarch.rpm` |
-| Ubuntu 26.04 | `sudo apt install ./frequenz_0.2.1-1_all.deb` |
+| Fedora 45 | `sudo dnf install ./frequenz-0.3.0-1.fc45.noarch.rpm` |
+| Ubuntu 26.04 | `sudo apt install ./frequenz_0.3.0-1_all.deb` |
 | Flatpak | `flatpak-builder --user --install packaging/flatpak/se.laps.Frequenz.yml` (see `packaging/README.md`) |
 
 PyGObject, GTK, libadwaita and GStreamer come from the distribution; the packages pull them in.

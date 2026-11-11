@@ -1,4 +1,4 @@
-frequenz (0.2.1-1) resolute; urgency=medium
+frequenz (0.3.0-1) resolute; urgency=medium
 
   * New application icon (hicolor PNGs from 16 to 512 px) and AppStream metadata,
     so GNOME Software and KDE Discover list the app.

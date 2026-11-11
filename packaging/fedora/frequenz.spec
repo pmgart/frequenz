@@ -4,7 +4,7 @@
 %global srcname frequenzradio
 
 Name:           frequenz
-Version:        0.2.1
+Version:        0.3.0
 Release:        1%{?dist}
 Summary:        Native, local and ad-free radio globe for Linux
 License:        GPL-3.0-or-later AND ISC AND MIT
@@ -76,6 +76,15 @@ appstreamcli validate --no-net %{srcname}/data/se.laps.Frequenz.metainfo.xml
 %{_datadir}/icons/hicolor/*/apps/se.laps.Frequenz.png
 
 %changelog
+* Wed Nov 11 2026 Pablo Magana <pablo@laps.se> - 0.3.0-1
+- New application icon (hicolor PNGs 16-512) and AppStream metadata, so the app
+  is listed in GNOME Software and KDE Discover.
+- Flatpak packaging; Fedora, Debian and Flatpak ship from one tree.
+- Code-review fixes: sync robustness, clean teardown, globe redraw and GL handling,
+  CLI error reporting and exit codes.
+- Require gstreamer1-plugins-ugly-free for MP3; drop the RPM Fusion dependency.
+- Ship the Lucide/Feather icon licence as %license.
+
 * Sat Nov 07 2026 Pablo Magana <pablo@laps.se> - 0.2.1-1
 - Fix: the map-pin icon on the now-playing card is visible. It took the window's text colour,
   which made it disappear on the card.

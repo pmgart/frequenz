@@ -13,16 +13,16 @@ Both fixes listed below are on `main` as well.
 
 ```
 packaging/fedora/verify-in-fedora.sh docker fedora:latest
-sudo dnf install ./frequenz-0.2.1-1.fc45.noarch.rpm
+sudo dnf install ./frequenz-0.3.0-1.fc45.noarch.rpm
 ```
 
 The RPMs, the source RPM and `SHA256SUMS` are written to `~/frequenz-rpm-out` (override with `FREQUENZ_RPM_OUT`).
 
 ## Release
 
-`v0.2.1` is a pre-release on the private repository. The Fedora, Ubuntu and Flatpak packages are
-built from the same tree (branch `fedora-compat`); the merge to `main` and the commit id of the
-release build are recorded here when the release is cut. `v0.2.0` and `v0.1.1` are superseded.
+`v0.3.0` is the first stable release built from one tree (branch `fedora-compat`, merged to
+`main`): the Fedora 45 RPM and source RPM, the Ubuntu 26.04 .deb and source tarball, and the
+Flatpak, all from the same commit. `v0.2.1`, `v0.2.0` and `v0.1.1` are superseded.
 
 The RPM is for Fedora 45 only. It installs into Fedora 45's Python 3.15 path and will not run on other
 releases. For another release, run the script with that image, for example `fedora:44`.

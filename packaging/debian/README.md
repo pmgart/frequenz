@@ -7,7 +7,7 @@ Target: **Ubuntu 26.04 LTS** (Python 3.14, GTK 4.22, libadwaita 1.9, GStreamer 1
 
 ```
 packaging/debian/verify-in-ubuntu.sh docker ubuntu:26.04
-sudo apt install ./frequenz_0.2.1_all.deb
+sudo apt install ./frequenz_0.3.0-1_all.deb
 ```
 
 The source tarball goes with any binary you share, because the GPL requires the source to accompany it.
