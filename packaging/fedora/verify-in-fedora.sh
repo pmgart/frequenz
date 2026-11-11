@@ -19,6 +19,8 @@ trap 'rm -rf "$WORK"' EXIT
 # already owned correctly; only docker needs the explicit chown.
 CHOWN_OUT=1
 if [ "$ENGINE" = "podman" ]; then CHOWN_OUT=0; fi
+DNS_ARGS=()
+if [ -n "${FREQUENZ_DNS:-}" ]; then DNS_ARGS=(--dns "$FREQUENZ_DNS"); fi
 
 mkdir -p "$OUT"
 rm -f "$OUT"/frequenz-*
@@ -26,7 +28,7 @@ rm -f "$OUT"/frequenz-*
     tar --null -T - --transform "s,^,frequenzradio-$VERSION/," -czf "$WORK/frequenzradio-$VERSION.tar.gz")
 echo "source: frequenzradio-$VERSION.tar.gz ($(tar -tzf "$WORK/frequenzradio-$VERSION.tar.gz" | wc -l) entries)"
 
-"$ENGINE" run --rm \
+"$ENGINE" run --rm "${DNS_ARGS[@]}" \
     -e "VERSION=$VERSION" \
     -e "HOST_UID=$(id -u)" \
     -e "HOST_GID=$(id -g)" \

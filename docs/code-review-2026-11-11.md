@@ -612,7 +612,7 @@ Fixed in this pass, with regression tests where the defect was testable:
 | Finding | Status |
 |---|---|
 | RPM hard `Requires: gstreamer1-libav` | fixed — removed; `gstreamer1-plugins-ugly-free` added |
-| RPM/DEB built from different sources | partial — Debian packaging merged into this branch; artifacts must be rebuilt from the release commit (container job) |
+| RPM/DEB built from different sources | fixed — Debian packaging merged into this branch; RPM, .deb and Flatpak rebuilt and verified from this tree |
 | Malformed `/places` entry aborts sync | fixed — per-entry guard, range check; `tests/test_api_parsing.py` |
 | Failed batch write aborts sync | fixed — per-place fallback, final flush cannot mask; `tests/test_sync_write_failure.py` |
 | `schema_version` stamped before migration | fixed — version written after the repair commits |

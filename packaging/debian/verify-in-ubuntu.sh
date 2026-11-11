@@ -18,6 +18,8 @@ trap 'rm -rf "$WORK"' EXIT
 # Rootless podman maps container root to the invoking host user; only docker needs the chown.
 CHOWN_OUT=1
 if [ "$ENGINE" = "podman" ]; then CHOWN_OUT=0; fi
+DNS_ARGS=()
+if [ -n "${FREQUENZ_DNS:-}" ]; then DNS_ARGS=(--dns "$FREQUENZ_DNS"); fi
 
 mkdir -p "$OUT"
 rm -f "$OUT"/frequenz_* "$OUT"/frequenz-*.tar.gz "$OUT"/SHA256SUMS
@@ -26,7 +28,7 @@ rm -f "$OUT"/frequenz_* "$OUT"/frequenz-*.tar.gz "$OUT"/SHA256SUMS
 cp "$WORK/frequenz_$VERSION.orig.tar.gz" "$OUT/"
 echo "source: frequenz_$VERSION.orig.tar.gz ($(tar -tzf "$WORK/frequenz_$VERSION.orig.tar.gz" | wc -l) entries)"
 
-"$ENGINE" run --rm \
+"$ENGINE" run --rm "${DNS_ARGS[@]}" \
     -e "VERSION=$VERSION" \
     -e "HOST_UID=$(id -u)" \
     -e "HOST_GID=$(id -g)" \
