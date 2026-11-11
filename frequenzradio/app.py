@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 
@@ -12,6 +13,8 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gdk, GLib, Gtk  # noqa: E402
 
 from .paths import APP_ID, APP_NAME, asset  # noqa: E402
+
+log = logging.getLogger("frequenzradio.app")
 
 
 class FrequenzApp(Adw.Application):
@@ -45,7 +48,12 @@ class FrequenzApp(Adw.Application):
         from gi.repository import Gio
 
         quit_action = Gio.SimpleAction.new("quit", None)
-        quit_action.connect("activate", lambda *_: self.quit())
+        # Close the window instead of quitting outright: close-request performs the
+        # player/catalog teardown and the final state save.
+        quit_action.connect(
+            "activate",
+            lambda *_: self.window.close() if self.window is not None else self.quit(),
+        )
         self.add_action(quit_action)
         self.set_accels_for_action("app.quit", ["<Primary>q"])
 
@@ -53,11 +61,25 @@ class FrequenzApp(Adw.Application):
         if self.window is None:
             from .window import MainWindow
 
-            self.window = MainWindow(app)
+            try:
+                self.window = MainWindow(app)
+            except Exception as exc:  # e.g. no playbin element, broken GTK install
+                log.exception("application startup failed")
+                dialog = Adw.AlertDialog(
+                    heading="FREQUENZ could not start",
+                    body=str(exc),
+                )
+                dialog.add_response("close", "Close")
+                dialog.connect("response", lambda *_: self.quit())
+                dialog.present(None)
+                return
             self.window.set_title(APP_NAME)
             if self._snapshot_path:
-                GLib.timeout_add_seconds(int(os.environ.get("FREQUENZ_SNAPSHOT_AFTER", "6")),
-                                         self._take_snapshot)
+                try:
+                    delay = max(0, int(os.environ.get("FREQUENZ_SNAPSHOT_AFTER", "6")))
+                except ValueError:
+                    delay = 6
+                GLib.timeout_add_seconds(delay, self._take_snapshot)
         self.window.present()
 
     def _on_shutdown(self, app) -> None:
@@ -67,16 +89,27 @@ class FrequenzApp(Adw.Application):
 
     def _take_snapshot(self) -> bool:
         """Test hook: write the window's current rendering to PNG and quit."""
-        window = self.window
-        paintable = Gtk.WidgetPaintable.new(window)
-        snapshot = Gtk.Snapshot.new()
-        paintable.snapshot(snapshot, window.get_width(), window.get_height())
-        node = snapshot.to_node()
-        if node is not None:
-            texture = window.get_native().get_renderer().render_texture(node, None)
+        try:
+            window = self.window
+            if window is None:
+                raise RuntimeError("no window to snapshot")
+            paintable = Gtk.WidgetPaintable.new(window)
+            snapshot = Gtk.Snapshot.new()
+            paintable.snapshot(snapshot, window.get_width(), window.get_height())
+            node = snapshot.to_node()
+            if node is None:
+                raise RuntimeError("window produced no render node")
+            native = window.get_native()
+            renderer = native.get_renderer() if native is not None else None
+            if renderer is None:
+                raise RuntimeError("window has no renderer")
+            texture = renderer.render_texture(node, None)
             texture.save_to_png(self._snapshot_path)
             print(f"snapshot written: {self._snapshot_path}", file=sys.stderr)
-        self.quit()
+        except Exception as exc:  # a broken hook must not hang the app
+            print(f"snapshot failed: {exc}", file=sys.stderr)
+        finally:
+            self.quit()
         return False
 
 

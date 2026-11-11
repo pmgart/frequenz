@@ -11,7 +11,15 @@ from .geodata import is_built
 from .paths import catalog_path, globe_dir
 
 GST_ELEMENTS = ("playbin3", "souphttpsrc", "decodebin", "autoaudiosink")
-AUDIO_DECODERS = ("mpg123audiodec", "avdec_aac", "opusdec", "vorbisdec", "flacdec")
+# A group is satisfied by any of its elements: distributions package the same decoder
+# under different names. MP3 and AAC are the formats radio streams actually use.
+AUDIO_DECODERS = {
+    "MP3": ("mpg123audiodec", "mad", "avdec_mp3"),
+    "AAC": ("avdec_aac", "faad"),
+    "Opus": ("opusdec",),
+    "Vorbis": ("vorbisdec",),
+    "FLAC": ("flacdec",),
+}
 
 
 def _version_series(version: str) -> str:
@@ -77,12 +85,15 @@ def run_doctor() -> int:
         report("GStreamer", True, Gst.version_string())
         for name in GST_ELEMENTS:
             report(f"GStreamer element '{name}'", Gst.ElementFactory.find(name) is not None)
-        decoders = [name for name in AUDIO_DECODERS if Gst.ElementFactory.find(name)]
-        report(
-            "audio decoders (MP3/AAC/Opus/Vorbis/FLAC)",
-            bool(decoders),
-            ", ".join(decoders) or "none installed",
-        )
+        for codec, candidates in AUDIO_DECODERS.items():
+            found = [name for name in candidates if Gst.ElementFactory.find(name)]
+            missing_is_error = codec in ("MP3", "AAC")
+            report(
+                f"audio decoder for {codec}",
+                bool(found),
+                ", ".join(found) if found else f"missing ({' / '.join(candidates)})",
+                warn_only=not missing_is_error,
+            )
     except Exception as exc:  # noqa: BLE001 - doctor reports everything
         report("GTK / GStreamer bindings", False, str(exc))
 
@@ -103,14 +114,25 @@ def run_doctor() -> int:
     if path.exists():
         from .catalog import Catalog
 
-        catalog = Catalog(path)
-        stats = catalog.stats()
-        catalog.close()
-        report("station catalog", stats.stations > 0,
-               f"{stats.stations} stations, {stats.places_synced}/{stats.places} places synced ({path})",
-               warn_only=True)
-        report("search index complete", stats.search_rows == stats.stations,
-               f"{stats.search_rows}/{stats.stations} stations searchable", warn_only=True)
+        catalog = None
+        try:
+            catalog = Catalog(path)
+            stats = catalog.stats()
+        except Exception as exc:  # sqlite3.DatabaseError, OSError, bad schema
+            report(
+                "station catalog",
+                False,
+                f"{path}: {exc}; move the file aside and run 'frequenz sync'",
+            )
+        else:
+            report("station catalog", stats.stations > 0,
+                   f"{stats.stations} stations, {stats.places_synced}/{stats.places} places synced ({path})",
+                   warn_only=True)
+            report("search index complete", stats.search_rows == stats.stations,
+                   f"{stats.search_rows}/{stats.stations} stations searchable", warn_only=True)
+        finally:
+            if catalog is not None:
+                catalog.close()
     else:
         report("station catalog", False, f"not found at {path}; run 'frequenz sync'", warn_only=True)
 
