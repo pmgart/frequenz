@@ -25,7 +25,8 @@ fail() { printf 'error: %s\n' "$1" >&2; exit 1; }
 
 [[ -x "$PYTHON" ]] || fail "no .venv; run scripts/macos-setup.sh first"
 command -v dylibbundler >/dev/null || fail "dylibbundler is missing; run: brew install dylibbundler"
-command -v rsvg-convert >/dev/null || fail "rsvg-convert is missing; run: brew install librsvg"
+ICON_SRC="$ROOT/packaging/icon/1024x1024/apps/se.laps.Frequenz.png"
+[[ -f "$ICON_SRC" ]] || fail "no app icon at $ICON_SRC"
 [[ -d "$BREW/opt/gtk4" ]] || fail "gtk4 is missing; run scripts/macos-setup.sh"
 
 PY_VER="$("$PYTHON" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
@@ -178,11 +179,10 @@ step "App icon"
 ICONSET="$ROOT/build/Frequenz.iconset"
 rm -rf "$ICONSET"
 mkdir -p "$ICONSET"
-SVG="$ROOT/frequenzradio/data/icons/hicolor/scalable/apps/se.laps.Frequenz.svg"
 for size in 16 32 128 256 512; do
-    rsvg-convert -w "$size" -h "$size" "$SVG" -o "$ICONSET/icon_${size}x${size}.png"
+    sips -z "$size" "$size" "$ICON_SRC" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
     double=$((size * 2))
-    rsvg-convert -w "$double" -h "$double" "$SVG" -o "$ICONSET/icon_${size}x${size}@2x.png"
+    sips -z "$double" "$double" "$ICON_SRC" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Frequenz.icns"
 

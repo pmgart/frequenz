@@ -20,11 +20,13 @@ import gi
 gi.require_version("Gst", "1.0")
 from gi.repository import GLib, Gst  # noqa: E402
 
+from . import __version__  # noqa: E402
+
 log = logging.getLogger("frequenzradio.player")
 
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/124.0 Safari/537.36 Frequenz/0.1"
+    f"Chrome/124.0 Safari/537.36 Frequenz/{__version__}"
 )
 GST_PLAY_FLAG_VIDEO = 1 << 0
 GST_PLAY_FLAG_AUDIO = 1 << 1
@@ -48,7 +50,10 @@ class Player:
         Gst.init(None)
         self._factory = "playbin3" if Gst.ElementFactory.find("playbin3") else "playbin"
         if Gst.ElementFactory.find(self._factory) is None:
-            raise RuntimeError(f"GStreamer element {self._factory!r} is not available")
+            raise RuntimeError(
+                "GStreamer 'playbin3'/'playbin' is missing; install "
+                "gstreamer1-plugins-base (Fedora) or gstreamer1.0-plugins-base (Ubuntu)"
+            )
         self._audio_sink_name = audio_sink
         self._volume = 1.0
         self.pipeline = None

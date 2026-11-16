@@ -1,6 +1,7 @@
 # FREQUENZ on macOS: handoff
 
-- Branch: `macos-app`, created from `main` (v0.2.1). `main` is not changed.
+- Branch: `macos-app`, created from `main` (v0.2.1); merged `main` (v0.3.0, the new app icon) on 2026-11-16.
+  `main` is not changed.
 - Approved plan: [PLAN.md](PLAN.md) (rev 1, approved 2026-11-07).
 - Last updated: 2026-11-09.
 

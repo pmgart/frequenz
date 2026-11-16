@@ -34,6 +34,10 @@ class SyncReport:
 ProgressFn = Callable[[SyncReport], None]
 
 
+class _SyncCancelled(Exception):
+    """Raised inside a worker when the caller cancelled the run."""
+
+
 def sync_places(client: RadioGardenClient, catalog: Catalog) -> int:
     """Refresh the place list (one request, ~1.9 MB)."""
     version, places = client.places()
@@ -60,7 +64,26 @@ def sync_stations(
         return report
 
     def fetch(place_id: str) -> tuple[str, list[Station]]:
+        if cancel is not None and cancel.is_set():
+            raise _SyncCancelled
         return place_id, client.place_stations(place_id)
+
+    def flush(batch: list[tuple[str, list[Station]]]) -> int:
+        """Write one batch; on failure retry place by place so one bad row cannot lose 100."""
+        try:
+            return catalog.save_place_stations(batch)
+        except Exception as exc:
+            log.warning("batch write failed for %d places: %s", len(batch), exc)
+        saved = 0
+        for item in batch:
+            try:
+                saved += catalog.save_place_stations([item])
+            except Exception as exc:
+                report.places_failed += 1
+                if len(report.failures) < 5:
+                    report.failures.append(f"{item[0]}: {exc}")
+                log.warning("place %s could not be stored: %s", item[0], exc)
+        return saved
 
     pending: list[tuple[str, list[Station]]] = []
     pool = ThreadPoolExecutor(max_workers=max(1, workers), thread_name_prefix="rg-sync")
@@ -73,6 +96,9 @@ def sync_stations(
             place_id = futures[future]
             try:
                 _, stations = future.result()
+            except _SyncCancelled:
+                report.cancelled = True
+                break
             except Exception as exc:  # keep going; the place stays unsynced
                 report.places_failed += 1
                 if len(report.failures) < 5:
@@ -82,16 +108,21 @@ def sync_stations(
             pending.append((place_id, stations))
             report.places_done += 1
             if len(pending) >= batch_size:
-                report.stations_saved += catalog.save_place_stations(pending)
+                report.stations_saved += flush(pending)
                 pending.clear()
             if progress is not None and report.places_done % 25 == 0:
                 progress(report)
     finally:
-        pool.shutdown(wait=not report.cancelled, cancel_futures=True)
+        # Wait for in-flight requests (bounded by the client timeout) so a cancelled
+        # sync cannot leave workers writing after the caller closed its catalog.
+        pool.shutdown(wait=True, cancel_futures=True)
         if pending:
-            report.stations_saved += catalog.save_place_stations(pending)
-    catalog.rebuild_search_index()
-    if not report.cancelled:
+            try:
+                report.stations_saved += flush(pending)
+            except Exception as exc:  # never mask the original exception
+                log.warning("final batch could not be stored: %s", exc)
+    # The FTS triggers keep the search index current; no whole-index rebuild per run.
+    if not report.cancelled and report.places_failed == 0:
         catalog.mark_synced()
     report.elapsed_s = time.monotonic() - started
     if progress is not None:

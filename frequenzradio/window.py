@@ -18,6 +18,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango  # noqa: E402
 
 from .api import BASE_URL, RadioGardenClient  # noqa: E402
+from . import __version__  # noqa: E402
 from .catalog import Catalog  # noqa: E402
 from . import geo  # noqa: E402
 from .globe import GlobeView, PlaceSet  # noqa: E402
@@ -70,6 +71,8 @@ class MainWindow(Adw.ApplicationWindow):
         self._sync_thread: threading.Thread | None = None
         self._resolve_token: object | None = None
         self._auto_skips = 0
+        self._auto_skip_source = 0
+        self._closing = False
         self._sync_cancel = threading.Event()
         self._search_timeout = 0
         self._suppress_volume = False
@@ -389,6 +392,8 @@ class MainWindow(Adw.ApplicationWindow):
 
     # -- catalog views -----------------------------------------------------------
     def _reload_places(self) -> None:
+        if self._closing:
+            return
         rows = self.catalog.places()
         if rows:
             self.places = PlaceSet.from_rows(rows)
@@ -532,6 +537,8 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _search_now(self, text: str) -> bool:
         self._search_timeout = 0
+        if self._closing:
+            return GLib.SOURCE_REMOVE
         if text.strip():
             self._run_search(text)
         return GLib.SOURCE_REMOVE
@@ -623,7 +630,7 @@ class MainWindow(Adw.ApplicationWindow):
         threading.Thread(target=worker, name="rg-resolve", daemon=True).start()
 
     def _on_resolved(self, token: object, url: str) -> bool:
-        if token is not self._resolve_token:
+        if self._closing or token is not self._resolve_token:
             return GLib.SOURCE_REMOVE
         self._resolve_token = None
         self.player.load(url)
@@ -736,7 +743,20 @@ class MainWindow(Adw.ApplicationWindow):
             if can_skip:
                 self._auto_skips += 1
                 self.toast(f"Station unavailable ({reason}); trying the next one")
-                GLib.timeout_add(700, lambda: (self.play_relative(1), GLib.SOURCE_REMOVE)[1])
+                failed_id = self.current_row["id"] if self.current_row is not None else None
+                if self._auto_skip_source:
+                    GLib.source_remove(self._auto_skip_source)
+
+                def skip_failed() -> bool:
+                    self._auto_skip_source = 0
+                    # The user may have picked another station while this timer ran.
+                    if (self._closing or failed_id is None or self.current_row is None
+                            or self.current_row["id"] != failed_id):
+                        return GLib.SOURCE_REMOVE
+                    self.play_relative(1)
+                    return GLib.SOURCE_REMOVE
+
+                self._auto_skip_source = GLib.timeout_add(700, skip_failed)
             else:
                 self.toast(f"Could not play this station: {reason}")
 
@@ -768,6 +788,8 @@ class MainWindow(Adw.ApplicationWindow):
         note = ""
         if self.globe.gl_error:
             note = f"3D globe unavailable: {str(self.globe.gl_error)[:160]}"
+        elif self.globe.data_error:
+            note = f"Globe map could not be loaded: {self.globe.data_error}"
         elif not self.globe.vector_map_ready:
             note = "Vector map not built: run 'frequenz build-globe'"
         self.globe_note.set_label(note)
@@ -839,6 +861,8 @@ class MainWindow(Adw.ApplicationWindow):
         return GLib.SOURCE_REMOVE
 
     def _on_sync_progress(self, report: SyncReport) -> bool:
+        if self._closing:
+            return GLib.SOURCE_REMOVE
         done = report.places_done + report.places_failed
         total = max(1, report.places_total)
         fraction = min(1.0, done / total)
@@ -851,6 +875,8 @@ class MainWindow(Adw.ApplicationWindow):
         return GLib.SOURCE_REMOVE
 
     def _on_sync_done(self, report: SyncReport) -> bool:
+        if self._closing:
+            return GLib.SOURCE_REMOVE
         self._reload_places()
         stats = self.catalog.stats()
         self.sync_box.set_visible(False)
@@ -877,9 +903,18 @@ class MainWindow(Adw.ApplicationWindow):
         self._sync_cancel.set()
 
     def _on_close_request(self, window) -> bool:
+        if self._closing:
+            return False
+        self._closing = True
+        if self._auto_skip_source:
+            GLib.source_remove(self._auto_skip_source)
+            self._auto_skip_source = 0
+        self.stop_background_work()
         self._persist_view()
-        self.player.shutdown()
-        self.catalog.close()
+        try:
+            self.player.shutdown()
+        finally:
+            self.catalog.close()
         return False
 
     def _show_about(self) -> None:
@@ -887,7 +922,7 @@ class MainWindow(Adw.ApplicationWindow):
             application_name=APP_NAME,
             application_icon=APP_ID,
             developer_name="Unofficial desktop client",
-            version="0.2.1",
+            version=__version__,
             website=BASE_URL,
             comments=("A native, local and ad-free radio globe for Linux and macOS. "
                       "Station data and streams belong to their owners; see the README."),

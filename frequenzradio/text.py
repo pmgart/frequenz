@@ -32,6 +32,8 @@ def clean_text(value: str | None) -> str:
         if category == "Cc":  # tabs, line breaks and other control characters
             pieces.append(" ")
             continue
+        if category == "Cs":  # lone surrogates (e.g. from \ud800 JSON escapes) cannot be stored
+            continue
         pieces.append(char)
     return " ".join("".join(pieces).split())
 
