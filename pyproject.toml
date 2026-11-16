@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "frequenzradio"
 version = "0.3.0"
-description = "FREQUENZ: native, local and ad-free radio globe for Linux and macOS (GTK 4, libadwaita, GStreamer), an unofficial client for radio.garden"
+description = "FREQUENZ: native, local and ad-free radio globe for Fedora, Ubuntu and macOS (GTK 4, libadwaita, GStreamer)"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]

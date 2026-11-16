@@ -36,10 +36,10 @@ Requires:       rsms-inter-fonts
 Recommends:     python3-shapely
 
 %description
-FREQUENZ shows the public place and station list of radio.garden on an OpenGL
-globe, plays live streams with GStreamer and keeps a local SQLite catalog for
-instant search. It is an unofficial client: station data belongs to radio.garden
-and the broadcasters. There are no ads and no premium paths.
+FREQUENZ shows a public place and station directory on an OpenGL globe, plays
+live streams with GStreamer and keeps a local SQLite catalog for instant search.
+Station data belongs to the broadcasters and the directory service that lists
+them. There are no ads and no premium paths.
 
 %prep
 %autosetup -n %{srcname}-%{version}

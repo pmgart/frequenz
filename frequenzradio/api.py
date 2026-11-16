@@ -1,4 +1,4 @@
-"""Read-only client for the public Radio Garden endpoints used by the web app.
+"""Read-only client for the public station directory endpoints used by the web app.
 
 Endpoints verified against the live service (see docs/REVERSE_ENGINEERING.md):
 
@@ -26,6 +26,7 @@ from email.utils import parsedate_to_datetime
 from . import __version__
 from .text import clean_text
 
+# The directory service the app reads. This is the only place the host is named.
 BASE_URL = "https://radio.garden"
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -82,7 +83,7 @@ class Place:
     country: str
     lng: float
     lat: float
-    size: int  # number of stations Radio Garden lists for this place
+    size: int  # number of stations the service lists for this place
     boost: bool
     url: str
 
@@ -189,7 +190,7 @@ def parse_place_channels(payload: dict) -> list[Station]:
     return stations
 
 
-class RadioGardenClient:
+class RadioClient:
     """Small urllib-based client with throttling and bounded retries.
 
     Thread-safe: the throttle is shared by all threads, so the request rate stays

@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Callable
 
-from .api import RadioGardenClient, Station
+from .api import RadioClient, Station
 from .catalog import Catalog
 
 log = logging.getLogger("frequenzradio.sync")
@@ -38,14 +38,14 @@ class _SyncCancelled(Exception):
     """Raised inside a worker when the caller cancelled the run."""
 
 
-def sync_places(client: RadioGardenClient, catalog: Catalog) -> int:
+def sync_places(client: RadioClient, catalog: Catalog) -> int:
     """Refresh the place list (one request, ~1.9 MB)."""
     version, places = client.places()
     return catalog.upsert_places(places, version)
 
 
 def sync_stations(
-    client: RadioGardenClient,
+    client: RadioClient,
     catalog: Catalog,
     *,
     workers: int = 4,

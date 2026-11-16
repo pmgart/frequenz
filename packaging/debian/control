@@ -41,11 +41,11 @@ Depends: ${misc:Depends},
  hicolor-icon-theme,
  fonts-inter
 Recommends: python3-shapely
-Description: native, local and ad-free radio globe (unofficial radio.garden client)
- FREQUENZ shows the public place and station list of radio.garden on an
- OpenGL globe, plays live streams with GStreamer and keeps a local catalog
- for instant search. It is an unofficial client: station data belongs to
- radio.garden and the broadcasters. There are no ads and no premium paths.
+Description: native, local and ad-free radio globe
+ FREQUENZ shows a public place and station directory on an OpenGL globe,
+ plays live streams with GStreamer and keeps a local catalog for instant
+ search. Station data belongs to the broadcasters and the directory service
+ that lists them. There are no ads and no premium paths.
  .
  The station catalog downloads on first start. Run 'frequenz build-globe'
  once to add the land map.

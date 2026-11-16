@@ -2,7 +2,7 @@
 
 import pytest
 
-from frequenzradio.api import ApiError, RadioGardenClient, parse_places
+from frequenzradio.api import ApiError, RadioClient, parse_places
 
 
 def _payload(*entries):
@@ -39,7 +39,7 @@ def test_non_dict_entries_are_ignored():
 
 
 def test_get_json_reports_invalid_json_as_api_error(monkeypatch):
-    client = RadioGardenClient(base_url="https://example.invalid")
+    client = RadioClient(base_url="https://example.invalid")
 
     def fake_open(path, **kwargs):
         return 200, {}, b"<html>rate limited</html>"
@@ -50,14 +50,14 @@ def test_get_json_reports_invalid_json_as_api_error(monkeypatch):
 
 
 def test_get_json_rejects_non_object_payloads(monkeypatch):
-    client = RadioGardenClient(base_url="https://example.invalid")
+    client = RadioClient(base_url="https://example.invalid")
     monkeypatch.setattr(client, "_open", lambda path, **kwargs: (200, {}, b"[1, 2]"))
     with pytest.raises(ApiError, match="unexpected JSON"):
         client.get_json("/api/ara/content/places")
 
 
 def test_stream_redirect_must_be_http(monkeypatch):
-    client = RadioGardenClient(base_url="https://example.invalid")
+    client = RadioClient(base_url="https://example.invalid")
 
     def fake_open(path, **kwargs):
         return 302, {"Location": "file:///etc/passwd"}, b""
@@ -67,7 +67,7 @@ def test_stream_redirect_must_be_http(monkeypatch):
 
 
 def test_place_ids_are_quoted_in_request_paths(monkeypatch):
-    client = RadioGardenClient(base_url="https://example.invalid")
+    client = RadioClient(base_url="https://example.invalid")
     seen = []
 
     def fake_get_json(path):

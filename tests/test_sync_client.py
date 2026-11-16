@@ -1,4 +1,4 @@
-"""HTTP client and sync tests against a local fake Radio Garden server (no internet needed)."""
+"""HTTP client and sync tests against a local fake station directory server (no internet needed)."""
 
 import json
 import threading
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from frequenzradio.api import ApiError, RadioGardenClient, parse_place_channels
+from frequenzradio.api import ApiError, RadioClient, parse_place_channels
 from frequenzradio.catalog import Catalog
 from frequenzradio.sync import sync_places, sync_stations
 
@@ -18,8 +18,8 @@ FAIL_ID = PLACES[1]["id"]  # always answers 500 until the test heals it
 RETRY_ID = PLACES[2]["id"]  # answers 429 once, then succeeds
 
 
-class FakeRadioGarden(BaseHTTPRequestHandler):
-    server_version = "FakeRadioGarden/1"
+class FakeService(BaseHTTPRequestHandler):
+    server_version = "FakeService/1"
 
     def log_message(self, *args):  # keep test output quiet
         pass
@@ -58,7 +58,7 @@ class FakeRadioGarden(BaseHTTPRequestHandler):
 
 @pytest.fixture()
 def server():
-    httpd = ThreadingHTTPServer(("127.0.0.1", 0), FakeRadioGarden)
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), FakeService)
     httpd.hits = []
     httpd.failing = {FAIL_ID}
     httpd.throttled_once = True
@@ -69,8 +69,8 @@ def server():
     httpd.server_close()
 
 
-def make_client(base: str, **kwargs) -> RadioGardenClient:
-    return RadioGardenClient(base_url=base, min_interval=0.0, max_retries=3, retry_delay=0.001, **kwargs)
+def make_client(base: str, **kwargs) -> RadioClient:
+    return RadioClient(base_url=base, min_interval=0.0, max_retries=3, retry_delay=0.001, **kwargs)
 
 
 def test_places_request_sends_identifying_user_agent(server):

@@ -1,6 +1,6 @@
 """Audio playback with GStreamer ``playbin3`` (PipeWire or PulseAudio output).
 
-* Streams are opened through Radio Garden's ``listen`` endpoint, which 302-redirects to
+* Streams are opened through the service's ``listen`` endpoint, which 302-redirects to
   the broadcaster's stream; GStreamer's souphttpsrc follows the redirect.
 * ICY (Shoutcast/Icecast) metadata is requested, so the "now playing" title appears.
 * Every play, pause or reconnect builds a fresh pipeline and discards the old one.

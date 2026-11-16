@@ -1,12 +1,12 @@
 # FREQUENZ
 
-A native, local and **ad-free** desktop client for Radio Garden: turn the globe, tune in to live
-stations and search the catalog. Built with GTK 4 and libadwaita, GStreamer for audio and an
-OpenGL globe. Browsing, search and favorites run from a local SQLite catalog. Only the audio stream
-itself needs the network.
+A native, local and **ad-free** radio globe for **Fedora, Ubuntu and macOS**. Turn the globe,
+tune in to live stations and search the catalog. Built with GTK 4 and libadwaita, GStreamer for
+audio and an OpenGL globe. Browsing, search and favorites run from a local SQLite catalog. Only
+the audio stream itself needs the network.
 
-> Unofficial. Not affiliated with Radio Garden. Station names, place data and streams belong to
-> Radio Garden and the broadcasters. Personal use only; do not redistribute the catalog.
+> Station names, place data and streams belong to the broadcasters and the directory service that
+> lists them. Personal use only; do not redistribute the catalog.
 
 ## Features
 
@@ -23,20 +23,32 @@ itself needs the network.
 - **No ads**: no ad SDKs, consent frameworks, promo banners or pre-roll ad media. See
   [What "no ads" means here](#what-no-ads-means-here).
 
-## Requirements
+## Platforms
 
-Linux with GTK 4 and libadwaita on Wayland or X11. Tested on Fedora 45 (KDE Plasma 6) and
-Ubuntu 26.04 (GNOME); Ubuntu 24.04 is not tested. The Flatpak runs on any Flatpak host.
+| Platform | Supported version | How it is packaged |
+|---|---|---|
+| Fedora | 45 | RPM; GTK 4, libadwaita and GStreamer come from the distribution |
+| Ubuntu | 26.04 | DEB; the same libraries come from the distribution |
+| macOS | 27 or newer, Apple Silicon | Self-contained `.dmg`; GTK, GStreamer and Python are inside the app |
+
+The Flatpak runs on any Flatpak host. Ubuntu 24.04 is not tested.
+
+Linux needs:
 
 - OpenGL 3.3 core (or OpenGL ES 3.0 through EGL). Works with Mesa and NVIDIA drivers.
 - PipeWire or PulseAudio for audio output (autoaudiosink).
 
+macOS needs no Homebrew install: the app carries its own libraries. It is ad-hoc
+signed but not notarised, so the first launch needs System Settings › Privacy &
+Security › Open Anyway.
+
 ### Install a package
 
-| Format | Command |
-|--------|---------|
-| Fedora 45 | `sudo dnf install ./frequenz-0.3.0-1.fc45.noarch.rpm` |
-| Ubuntu 26.04 | `sudo apt install ./frequenz_0.3.0-1_all.deb` |
+| Platform | Command |
+|----------|---------|
+| Fedora 45 | `sudo dnf install ./frequenz-<version>-1.fc45.noarch.rpm` |
+| Ubuntu 26.04 | `sudo apt install ./frequenz_<version>-1_all.deb` |
+| macOS | open `FREQUENZ-<version>-arm64.dmg` and drag FREQUENZ to Applications |
 | Flatpak | `flatpak-builder --user --install packaging/flatpak/se.laps.Frequenz.yml` (see `packaging/README.md`) |
 
 PyGObject, GTK, libadwaita and GStreamer come from the distribution; the packages pull them in.
@@ -149,13 +161,14 @@ cleaner source, for example contours from the GEBCO grid. The globe has no label
 - **Names**: station and place names are cleaned when they are read. Invisible characters (such
   as zero-width spaces and directional marks) are removed and spacing is normalized. Names
   stored by earlier versions were cleaned once, when the catalog was first opened.
-- **Requests** go to `https://radio.garden`: the public catalog endpoints, the station detail
-  endpoint and the `listen` endpoint that redirects to each stream. There is no account, login or
-  telemetry. Requests send a browser-style User-Agent that names this client, because the public
-  site returned HTTP 403 to curl's default User-Agent during testing.
+- **Requests** go to the station directory API (`BASE_URL` in `frequenzradio/api.py`): the public
+  catalog endpoints, the station detail endpoint and the `listen` endpoint that redirects to each
+  stream. There is no account, login or telemetry. Requests send a browser-style User-Agent that
+  names this client, because the public site returned HTTP 403 to curl's default User-Agent during
+  testing.
 - **Streams** come straight from the broadcasters after the redirect.
-- **Attribution and use**: the station data is Radio Garden's and the streams are the broadcasters'.
-  Keep the catalog for personal use.
+- **Attribution and use**: the station data belongs to the directory service and the streams to the
+  broadcasters. Keep the catalog for personal use.
 - **Map data**: Natural Earth, public domain (https://www.naturalearthdata.com/about/terms-of-use/).
 
 ## What "no ads" means here
@@ -164,10 +177,11 @@ The web app and the Android app show advertising. This client does not:
 
 - It contains no advertising, analytics or consent SDKs. The catalog and the globe are built from
   the public data only.
-- Stations that Radio Garden marks as pre-roll (`preroll: true`, about 4.8 % (1,864 stations), nearly
-  all on zeno.fm) play their **direct stream**. The pre-roll ad appears to be added by the Radio Garden
-  web player rather than by the station (inferred: the `listen` endpoint returns the plain stream). The `listen` endpoint for these stations redirects straight to the
-  broadcaster's stream (verified), so the app never requests ad media.
+- Stations that the service marks as pre-roll (`preroll: true`, about 4.8 % (1,864 stations), nearly
+  all on zeno.fm) play their **direct stream**. The pre-roll ad appears to be added by the web
+  player rather than by the station (inferred: the `listen` endpoint returns the plain stream). The
+  `listen` endpoint for these stations redirects straight to the broadcaster's stream (verified), so
+  the app never requests ad media.
 - The "remove ads" purchase, premium entitlements, and the "get the native app" promotions in the
   web app are not implemented.
 - Boosted places (`boost: true`, 243 places) are drawn slightly larger on the globe. This is a
@@ -218,14 +232,13 @@ reuses the downloaded files.
 
 ## macOS
 
-A native Mac app for Apple Silicon Macs running macOS 27 or newer. The same GTK 4
-code runs on both platforms; the Mac work lives on the `macos-app` branch. There
-is no public Mac release yet: build the unsigned `.dmg` yourself (below) and
-drag FREQUENZ to Applications. Because it is ad-hoc signed and not notarised, the
-first launch needs System Settings › Privacy & Security › Open Anyway. On a Mac
-the data folder is `~/Library/Application Support/frequenz` and the shortcuts
-show ⌘ instead of Ctrl. The first launch downloads the station catalog and shows
-its progress in the right panel.
+A native Mac app for Apple Silicon Macs running macOS 27 or newer, built from the
+same GTK 4 code as the Linux versions. Download `FREQUENZ-<version>-arm64.dmg`
+from the releases page, open it and drag FREQUENZ to Applications. The build is
+ad-hoc signed and not notarised, so the first launch needs System Settings ›
+Privacy & Security › Open Anyway. On a Mac the data folder is `~/Library/Application
+Support/frequenz` and the shortcuts show ⌘ instead of Ctrl. The first launch
+downloads the station catalog and shows its progress in the right panel.
 
 From a checkout:
 
@@ -295,4 +308,4 @@ Copyright © 2026 LAPS AB. Written by Pablo Magana.
 
 FREQUENZ is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY. See [LICENSE](LICENSE).
 
-The license covers this code. It does not cover the station data: place and station names, stream addresses and related metadata belong to radio.garden and the broadcasters (see "Data, privacy and the service").
+The license covers this code. It does not cover the station data: place and station names, stream addresses and related metadata belong to the directory service and the broadcasters (see "Data, privacy and the service").

@@ -29,7 +29,7 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2026 LAPS AB. GPL-3.0-or-later. Not affiliated with Radio Garden.</string>
+	<string>Copyright © 2026 LAPS AB. GPL-3.0-or-later. Not affiliated with any station, broadcaster or directory service.</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
 </dict>

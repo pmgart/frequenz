@@ -1,6 +1,6 @@
 # Packaging
 
-FREQUENZ ships from one tree in three formats. The application code, the desktop file,
+FREQUENZ ships from one tree in four formats. The application code, the desktop file,
 the AppStream metadata and the icons are shared; each directory only adds the wrapper
 for its package manager.
 
@@ -9,6 +9,11 @@ for its package manager.
 | `fedora/` | Fedora 45 (RPM) | `packaging/fedora/verify-in-fedora.sh` (builds in a container) |
 | `debian/` | Ubuntu 26.04 (deb) | `packaging/debian/verify-in-ubuntu.sh` (builds in a container) |
 | `flatpak/` | Any Flatpak host (Flathub) | `flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/se.laps.Frequenz.yml` |
+| `macos/` | macOS 27+ on Apple Silicon (`.app`/`.dmg`) | `packaging/macos/build-app.sh` then `make-dmg.sh` |
+
+The macOS bundle is self-contained: Python, GTK, libadwaita and GStreamer travel inside
+the app, so the target Mac needs no Homebrew. It is ad-hoc signed but not notarised;
+the first launch needs Open Anyway. See `docs/macos/HANDOFF.md`.
 
 ## Shared files
 

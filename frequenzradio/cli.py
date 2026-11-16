@@ -46,7 +46,7 @@ def _bounded_float(minimum: float, maximum: float):
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="frequenz",
-        description="FREQUENZ: a native, local and ad-free radio globe for Linux and macOS.",
+        description="FREQUENZ: a native, local and ad-free radio globe for Fedora, Ubuntu and macOS.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("-v", "--verbose", action="store_true", help="debug logging")
@@ -106,11 +106,11 @@ def _cmd_build_globe(args: argparse.Namespace) -> int:
 
 
 def _cmd_sync(args: argparse.Namespace) -> int:
-    from .api import RadioGardenClient
+    from .api import RadioClient
     from .catalog import Catalog
     from .sync import SyncReport, sync_places, sync_stations
 
-    client = RadioGardenClient(min_interval=args.min_interval)
+    client = RadioClient(min_interval=args.min_interval)
     catalog = Catalog(catalog_path())
     cancel = threading.Event()
 

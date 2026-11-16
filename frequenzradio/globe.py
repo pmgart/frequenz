@@ -5,7 +5,7 @@ Rendering (painter's order, no depth buffer: back-face culling removes the hidde
 * the ocean is one colour on a base ellipsoid (the depth bands are not drawn, see geodata.SOURCES),
 * land, lakes and glaciers are triangulated Natural Earth polygons,
 * country borders and rivers are lines, shown when zoomed in,
-* places are GPU point sprites; size classes mirror Radio Garden's web globe,
+* places are GPU point sprites; size classes mirror the reference web globe,
 * lighting follows the real sun for the current time (day and night side).
 
 Interaction: drag to turn (with inertia), wheel for smooth zoom, +/- to step through the zoom
@@ -43,7 +43,7 @@ from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from . import geo, geodata  # noqa: E402
 
-# Size classes and boost factor taken from the Radio Garden web globe bundle
+# Size classes and boost factor taken from the reference web globe bundle
 # (smallPlaceScale/mediumPlaceScale/largePlaceScale, thresholds 5 and 20, boostScale 1.5).
 SMALL_SCALE, MEDIUM_SCALE, LARGE_SCALE = 0.14, 0.27, 0.42
 MEDIUM_THRESHOLD, LARGE_THRESHOLD = 5, 20

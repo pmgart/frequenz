@@ -5,17 +5,17 @@ tool output on 2026-11-02. Observations, inferences and open questions are kept 
 
 ## 1. Reference and sources
 
-The reference is the live web app at `https://radio.garden/?hl=sv` (release `48e1795d` when it was analysed).
+The reference is the live web app at its public site (release `48e1795d` when it was analysed).
 
-A third-party Android APK supplied for this project was checked and is **not** Radio Garden. It is the Uptodown App Store client: file `uptodown-com.jonathanpuckey.radiogarden.apk`, 15,659,226 bytes, SHA-256 `d903bec98d76854baa279c81b97048273a7ffd506e2d421308efbb6e7bf66b76`, package `com.uptodown`, version 7.42. None of its 22,437 DEX classes has a name containing `radiogarden` or `jonathanpuckey`, and no `radio.garden` URL appears in any DEX file. The Uptodown ads and consent SDKs in that file were not reused. The APK is not part of this repository, and no design decision depends on it.
+A third-party Android APK supplied for this project was checked and is **not** the reference app. It is the Uptodown App Store client: 15,659,226 bytes, SHA-256 `d903bec98d76854baa279c81b97048273a7ffd506e2d421308efbb6e7bf66b76`, package `com.uptodown`, version 7.42. None of its 22,437 DEX classes contains the service's name or the original author's package name, and no service URL appears in any DEX file. The Uptodown ads and consent SDKs in that file were not reused. The APK is not part of this repository, and no design decision depends on it.
 
 ## 2. Analysis tools
 
-REA's JavaScript analysis of the web bundle is partial (section 3). The Android analysis tools were unavailable here because the JADX MCP jar is not configured. They were not needed, because the APK is not Radio Garden.
+REA's JavaScript analysis of the web bundle is partial (section 3). The Android analysis tools were unavailable here because the JADX MCP jar is not configured. They were not needed, because the APK is not the reference app.
 
 ## 3. Web reference bundle (release `48e1795d`)
 
-Files analysed (saved from `https://radio.garden/?hl=sv`):
+Files analysed (saved from the live site):
 `index-CcJOVu-K.js` (427 KB), `index-legacy-sINPbp9_.js` (594 KB), `modules-2bll9wX6.js` (250 KB),
 `globe-D8fFMwrt.js` (160 KB), `rolldown-runtime-BdekjxZ0.js`, `polyfills-legacy-Cbum96GH.js`, and the stylesheet `index-YSey3RuP.css` (142 KB).
 
@@ -96,7 +96,7 @@ the same code path in the window):
 
 ## 8. What is still unknown
 
-- Whether the Radio Garden Android app (not the Uptodown one) uses the same endpoints. The web is the reference.
+- Whether the service's own Android app (not the Uptodown one) uses the same endpoints. The web is the reference.
 - The exact rules for the `format` parameter on `listen` (every station in the sample returned `mp3`).
 - Rate limits: throughput varied during the crawl. The client retries 429 and 5xx responses silently,
   so whether the server throttled during the slow periods is not established. No place failed.

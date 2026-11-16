@@ -216,7 +216,7 @@ RPM/DEB artifacts non-identical under the same version.
 #### M4. Remote-supplied ids are interpolated into request URLs unquoted (CWE-22)
 
 - **File:** `frequenzradio/api.py` line 215 (core, security)
-- **Problem:** place_id comes from the payload (`raw["id"]`) and station ids come from the last path segment of the remote page URL (line 109); both are concatenated into request paths here and in Station.listen_path (line 75) with no quoting or charset validation. An id containing '/', '?', '#' or '../../' changes which endpoint is requested on radio.garden.
+- **Problem:** place_id comes from the payload (`raw["id"]`) and station ids come from the last path segment of the remote page URL (line 109); both are concatenated into request paths here and in Station.listen_path (line 75) with no quoting or charset validation. An id containing '/', '?', '#' or '../../' changes which endpoint is requested on the station service.
 - **Fix:** Quote with `urllib.parse.quote(value, safe="")` and validate ids against `^[A-Za-z0-9_-]+$` when parsing; skip entries that do not match.
 
 #### M5. Redirect target from remote data is used without scheme/host validation (CWE-939)
@@ -253,7 +253,7 @@ RPM/DEB artifacts non-identical under the same version.
 
 - **File:** `frequenzradio/cli.py` line 76 (core, error-handling)
 - **Problem:** ApiError from sync_places (no network/DNS is the most common first-run case), sqlite3.DatabaseError from Catalog() on a corrupt file, and OSError from catalog_path()/mkdir all escape main() as Python tracebacks. main() already returns int exit codes, so the contract exists but is bypassed for every expected failure mode.
-- **Fix:** Catch (ApiError, sqlite3.Error, OSError) in main(), print one actionable line to stderr (e.g. 'cannot reach radio.garden: <reason>; check your connection'), return 1; keep -v for the traceback.
+- **Fix:** Catch (ApiError, sqlite3.Error, OSError) in main(), print one actionable line to stderr (e.g. 'cannot reach the station service: <reason>; check your connection'), return 1; keep -v for the traceback.
 
 #### M11. Catalog is not closed on early return or on exception
 
@@ -348,7 +348,7 @@ RPM/DEB artifacts non-identical under the same version.
 #### M26. Request rate claim does not match the CLI default
 
 - **File:** `README.md` line 57 (packaging, docs)
-- **Problem:** README.md:57 says 'throttled to roughly 10 per second across four workers'. The CLI default is `--min-interval 0.05` shared across workers (cli.py:28-29), i.e. ~20 requests/second; only the GUI worker uses 0.1 (window.py:797). A README that overstates politeness by 2x is the kind of claim that gets quoted back at you if radio.garden complains.
+- **Problem:** README.md:57 says 'throttled to roughly 10 per second across four workers'. The CLI default is `--min-interval 0.05` shared across workers (cli.py:28-29), i.e. ~20 requests/second; only the GUI worker uses 0.1 (window.py:797). A README that overstates politeness by 2x is the kind of claim that gets quoted back at you if the service complains.
 - **Fix:** Set the CLI default to 0.1 (matching the GUI and the docs), or document '10/s in the app, 20/s with the CLI default'.
 
 #### M27. README documents a sync.log file that nothing writes
@@ -360,7 +360,7 @@ RPM/DEB artifacts non-identical under the same version.
 #### M28. README documents a station-detail endpoint request that the app never makes
 
 - **File:** `README.md` line 130 (packaging, docs)
-- **Problem:** README.md:130 says requests go to 'the station detail endpoint', and :161 lists 'station details' as catalog functionality, but RadioGardenClient.station_detail (api.py:217) and Catalog.station_detail/save_station_detail (catalog.py:372, 381) have no caller in the UI or CLI (grep across frequenzradio shows definitions only). The feature is dead code that is nevertheless covered by tests (test_sync_client.py:107, test_catalog.py:93), which inflates the coverage picture.
+- **Problem:** README.md:130 says requests go to 'the station detail endpoint', and :161 lists 'station details' as catalog functionality, but RadioClient.station_detail (api.py:217) and Catalog.station_detail/save_station_detail (catalog.py:372, 381) have no caller in the UI or CLI (grep across frequenzradio shows definitions only). The feature is dead code that is nevertheless covered by tests (test_sync_client.py:107, test_catalog.py:93), which inflates the coverage picture.
 - **Fix:** Either wire the detail fetch into the now-playing card/about area (with caching and an offline fallback) or delete the unused API/catalog methods, their tests and the README sentence before 1.0.
 
 #### M29. User-Agent still identifies as Frequenz/0.1
@@ -486,7 +486,7 @@ RPM/DEB artifacts non-identical under the same version.
 #### M49. Server-supplied redirect target is passed to playbin without scheme validation
 
 - **File:** `frequenzradio/player.py` line 69 (ui, security)
-- **Problem:** The stream URI handed to GStreamer is whatever the API's redirect says: `RadioGardenClient.resolve_stream` joins the server's `Location` header with the base URL (api.py:221–229) without checking the scheme or host, and `Player.load` passes it straight to `playbin3` as the `uri` property (line 69–76, `_start` line 161). `playbin` will happily open any registered protocol, including `file://` and `ftp://`, so a compromised or spoofed API response, or a hostile station redirect, can make the app open local files (or devices) through GStreamer and probe their contents through the audio path, instead of only stream HTTP(S) audio.
+- **Problem:** The stream URI handed to GStreamer is whatever the API's redirect says: `RadioClient.resolve_stream` joins the server's `Location` header with the base URL (api.py:221–229) without checking the scheme or host, and `Player.load` passes it straight to `playbin3` as the `uri` property (line 69–76, `_start` line 161). `playbin` will happily open any registered protocol, including `file://` and `ftp://`, so a compromised or spoofed API response, or a hostile station redirect, can make the app open local files (or devices) through GStreamer and probe their contents through the audio path, instead of only stream HTTP(S) audio.
 - **Fix:** Validate before loading: parse with `urllib.parse.urlsplit`, require `scheme in {"http", "https"}` and a non-empty host, otherwise fall back to the constructed `listen` URL; log the rejected URI. Doing the check in `Player.load` also covers future callers.
 
 #### M50. Forced colour scheme and USER-priority CSS override the system high-contrast theme

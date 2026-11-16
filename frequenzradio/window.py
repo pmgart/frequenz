@@ -17,7 +17,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango  # noqa: E402
 
-from .api import BASE_URL, RadioGardenClient  # noqa: E402
+from .api import BASE_URL, RadioClient  # noqa: E402
 from . import __version__  # noqa: E402
 from .catalog import Catalog  # noqa: E402
 from . import geo  # noqa: E402
@@ -620,7 +620,7 @@ class MainWindow(Adw.ApplicationWindow):
 
         def worker() -> None:
             try:
-                client = RadioGardenClient(timeout=40.0, max_retries=1, retry_delay=1.0)
+                client = RadioClient(timeout=40.0, max_retries=1, retry_delay=1.0)
                 target = client.resolve_stream(station_id)
             except Exception as exc:  # noqa: BLE001 - fall back to the listen URL
                 log.info("stream resolve failed (%s); using the listen URL", exc)
@@ -838,7 +838,7 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _sync_worker(self) -> None:
         catalog = Catalog(catalog_path())
-        client = RadioGardenClient(min_interval=0.1)
+        client = RadioClient(min_interval=0.1)
         try:
             sync_places(client, catalog)
             GLib.idle_add(self._reload_places)
@@ -921,10 +921,9 @@ class MainWindow(Adw.ApplicationWindow):
         about = Adw.AboutDialog(
             application_name=APP_NAME,
             application_icon=APP_ID,
-            developer_name="Unofficial desktop client",
+            developer_name="LAPS AB",
             version=__version__,
-            website=BASE_URL,
-            comments=("A native, local and ad-free radio globe for Linux and macOS. "
+            comments=("A native, local and ad-free radio globe for Fedora, Ubuntu and macOS. "
                       "Station data and streams belong to their owners; see the README."),
         )
         about.present(self)
